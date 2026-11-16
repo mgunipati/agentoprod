@@ -1,9 +1,11 @@
 import argparse
+import contextlib
 import json
 import logging
 import sys
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from agent_factory import AgentSettings, create_agent
@@ -29,11 +31,11 @@ class JsonLogFormatter(logging.Formatter):
         return json.dumps(entry, ensure_ascii=True)
 
 
-def configure_logging() -> None:
+def configure_logging(level: int = logging.WARNING) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonLogFormatter())
     logging.basicConfig(
-        level=logging.INFO,
+        level=level,
         handlers=[handler],
         force=True,
     )
@@ -61,10 +63,19 @@ def main() -> int:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
 
-    configure_logging()
+    configure_logging(logging.INFO if args.observe else logging.WARNING)
     logger = logging.getLogger("agendev")
     logger.info("agent_started", extra={"model_id": settings.model_id, "region": settings.region})
     assistant = create_agent(settings, observe=args.observe)
+    # Run each request on a worker thread so Ctrl+C can cancel it cleanly.
+    executor = ThreadPoolExecutor(max_workers=1)
+    try:
+        return run(args, settings, assistant, executor, logger)
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+
+def run(args, settings, assistant, executor, logger) -> int:
 
     def respond(prompt: str) -> bool:
         if not prompt.strip():
@@ -79,9 +90,32 @@ def main() -> int:
 
         started = time.monotonic()
         request_id = str(uuid.uuid4()) if args.observe else None
+        # Strands records the user message before calling the model and keeps it
+        # when the call fails. Restore the prior history so the next request does
+        # not send two consecutive user messages, which Bedrock rejects.
+        history = list(assistant.messages)
+        future = executor.submit(
+            assistant, prompt,
+            invocation_state={"request_id": request_id} if request_id else None,
+        )
         try:
-            result = assistant(prompt, invocation_state={"request_id": request_id} if request_id else None)
+            result = future.result()
+        except KeyboardInterrupt:
+            assistant.cancel()
+            with contextlib.suppress(Exception):
+                future.result()
+            assistant.messages = history
+            logger.warning(
+                "agent_invocation_cancelled",
+                extra={
+                    "request_id": request_id,
+                    "duration_ms": round((time.monotonic() - started) * 1000),
+                },
+            )
+            print("\nRequest cancelled.", file=sys.stderr)
+            return False
         except Exception as exc:
+            assistant.messages = history
             logger.error(
                 "agent_invocation_failed",
                 extra={
@@ -124,8 +158,7 @@ def main() -> int:
             return 0
         if prompt.strip().lower() in {"/exit", "/quit"}:
             return 0
-        if respond(prompt):
-            continue
+        respond(prompt)
 
 
 if __name__ == "__main__":

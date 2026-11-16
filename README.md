@@ -33,8 +33,16 @@ selected Bedrock model.
 
 Command-line options take precedence over their corresponding environment variables.
 The interactive session keeps a bounded conversation history in process memory;
-it is not persisted between runs. Logs are JSON and intentionally exclude user
-prompts and model responses.
+it is not persisted between runs. A failed or cancelled request (Ctrl+C) is
+dropped from that history, so the conversation can continue. Logs are JSON on
+standard error, show only warnings and errors unless `--observe` is set, and
+intentionally exclude user prompts and model responses.
+
+## Tests
+
+```bash
+uv run pytest
+```
 
 ## Local observability
 

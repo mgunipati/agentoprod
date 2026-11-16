@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 from strands import Agent, tool
@@ -62,6 +63,29 @@ class FailingModel(FakeModel):
         yield
 
 
+class RecordingModel(FakeModel):
+    def __init__(self):
+        self.roles_seen = []
+
+    async def stream(self, messages, *args, **kwargs):
+        self.roles_seen.append([message["role"] for message in messages])
+        async for event in super().stream(messages, *args, **kwargs):
+            yield event
+
+
+class FlakyModel(RecordingModel):
+    def __init__(self):
+        super().__init__()
+        self.failed = False
+
+    async def stream(self, messages, *args, **kwargs):
+        if not self.failed:
+            self.failed = True
+            raise RuntimeError("private-error-detail")
+        async for event in super().stream(messages, *args, **kwargs):
+            yield event
+
+
 @tool
 def echo(text: str) -> str:
     """Return the input text."""
@@ -99,12 +123,66 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(completed["cycles"], 1)
 
     def test_observation_is_opt_in(self):
-        code, _, stderr = self.run_cli(["--prompt", "hello"])
+        code, stdout, stderr = self.run_cli(["--prompt", "hello"])
         self.assertEqual(code, 0)
-        records = [json.loads(line) for line in stderr.splitlines()]
-        self.assertNotIn("model_call_started", [record["message"] for record in records])
-        completed = next(record for record in records if record["message"] == "agent_invocation_completed")
-        self.assertNotIn("token_usage", completed)
+        self.assertIn("private-response", stdout)
+        self.assertEqual(stderr, "")
+
+    def test_failed_request_is_dropped_from_history(self):
+        model = FlakyModel()
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (
+            patch.object(sys, "argv", ["cli.py"]),
+            patch("agent_factory.BedrockModel", return_value=model),
+            patch("builtins.input", side_effect=["first", "second", "/exit"]),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = cli.main()
+
+        self.assertEqual(code, 0)
+        self.assertIn("The request failed (RuntimeError)", stderr.getvalue())
+        self.assertIn("private-response", stdout.getvalue())
+        self.assertEqual(model.roles_seen, [["user"]])
+
+    def test_ctrl_c_cancels_request_and_keeps_session(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        class InterruptFirstWait(ThreadPoolExecutor):
+            """Simulate Ctrl+C arriving while the first request is running."""
+
+            submitted = 0
+
+            def submit(self, fn, /, *args, **kwargs):
+                future = super().submit(fn, *args, **kwargs)
+                type(self).submitted += 1
+                if type(self).submitted == 1:
+                    original = future.result
+                    interrupted = []
+
+                    def result(*a, **k):
+                        if not interrupted:
+                            interrupted.append(True)
+                            original()  # let the request finish, then interrupt
+                            raise KeyboardInterrupt
+                        return original(*a, **k)
+
+                    future.result = result
+                return future
+
+        model = RecordingModel()
+        with (
+            patch.object(sys, "argv", ["cli.py"]),
+            patch("agent_factory.BedrockModel", return_value=model),
+            patch.object(cli, "ThreadPoolExecutor", InterruptFirstWait),
+            patch("builtins.input", side_effect=["first", "second", "/exit"]),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = cli.main()
+
+        self.assertEqual(code, 0)
+        self.assertIn("Request cancelled.", stderr.getvalue())
+        self.assertEqual(model.roles_seen, [["user"], ["user"]])
 
     def test_cli_overrides_invalid_environment_settings(self):
         with patch.dict(

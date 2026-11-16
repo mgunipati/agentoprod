@@ -64,8 +64,10 @@ class AgentSettings:
 
 
 def create_agent(settings: AgentSettings | None = None, *, observe: bool = False) -> Agent:
-    settings = settings or AgentSettings.from_env()
-    settings.validate()
+    if settings is None:
+        settings = AgentSettings.from_env()
+    else:
+        settings.validate()
 
     hooks = []
     if observe:
@@ -80,7 +82,9 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
         boto_client_config=Config(
             connect_timeout=5,
             read_timeout=120,
-            retries={"max_attempts": 5, "mode": "adaptive"},
+            # Strands retries throttling itself; keep SDK retries small so the
+            # two layers don't multiply into long waits before a failure.
+            retries={"max_attempts": 2, "mode": "standard"},
         ),
     )
     return Agent(
