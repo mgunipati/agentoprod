@@ -1,5 +1,6 @@
 import os
 import unittest
+from datetime import date
 from unittest.mock import patch
 
 from agent_factory import AgentSettings, create_agent, prompt_error
@@ -61,6 +62,7 @@ class AgentSettingsTests(unittest.TestCase):
         agent = create_agent(AgentSettings())
         self.assertIsInstance(agent, Agent)
         self.assertEqual(agent.name, "agendev")
+        self.assertIn(f"Today's date is {date.today().isoformat()}.", agent.system_prompt)
         self.assertEqual(sorted(agent.tool_names), sorted(t.tool_name for t in FINANCE_TOOLS))
 
     def test_prompt_error(self) -> None:

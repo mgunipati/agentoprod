@@ -2,6 +2,7 @@ import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date
 
 from botocore.config import Config
 from strands import Agent
@@ -94,10 +95,12 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
             retries={"max_attempts": 2, "mode": "standard"},
         ),
     )
+    # Models don't know today's date and treat recent data as "the future".
+    system_prompt = f"{SYSTEM_PROMPT}\nToday's date is {date.today().isoformat()}."
     return Agent(
         model=model,
         name="agendev",
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         tools=FINANCE_TOOLS,
         conversation_manager=SlidingWindowConversationManager(window_size=40),
         callback_handler=None,
