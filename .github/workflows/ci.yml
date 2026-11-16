@@ -1,0 +1,69 @@
+name: CI
+
+# Tests run on every push and pull request. Deploys run only for pushes to
+# main, only after the tests pass, using a short-lived AWS role via OIDC.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: uv run pytest -q
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # One deploy at a time; a newer push waits instead of racing.
+    concurrency:
+      group: deploy-agentcore
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write   # lets the job request a GitHub OIDC token for AWS
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: agentcore/cdk/package-lock.json
+
+      - name: Get temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install AgentCore CLI and CDK dependencies
+        run: |
+          npm install -g @aws/agentcore@1.0.1
+          npm ci --prefix agentcore/cdk
+
+      - name: Deploy to AgentCore
+        run: agentcore deploy --region "${{ vars.AWS_REGION }}"
+
+      - name: Show deployed status
+        run: agentcore status --region "${{ vars.AWS_REGION }}"
