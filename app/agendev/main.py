@@ -13,6 +13,7 @@ from functools import lru_cache
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
+from strands.types.exceptions import ConcurrencyException
 
 from agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
 
@@ -40,6 +41,10 @@ async def invoke(payload, context):
     try:
         with rollback_on_failure(agent):
             result = await agent.invoke_async(payload["prompt"])
+    except ConcurrencyException:
+        # The same session sent a new message before the last one finished.
+        log.warning("agent_busy")
+        return {"error": "Still answering your previous message. Try again in a moment."}
     except Exception as exc:
         log.error("agent_invocation_failed error_type=%s", type(exc).__name__)
         raise

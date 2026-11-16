@@ -8,6 +8,7 @@ from botocore.config import Config
 from strands import Agent
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.models import BedrockModel
+from strands.types.exceptions import ConcurrencyException
 
 if __package__:
     from .finance_tools import FINANCE_TOOLS
@@ -127,10 +128,15 @@ def rollback_on_failure(agent: Agent) -> Iterator[None]:
     Strands records the user message before calling the model and keeps it when
     the call fails or is cancelled. Without the rollback, the next request would
     send two user messages in a row, which Bedrock rejects.
+
+    A ConcurrencyException means another turn is still running on this agent and
+    owns the history, so it is re-raised without touching the messages.
     """
     history = list(agent.messages)
     try:
         yield
+    except ConcurrencyException:
+        raise
     except BaseException:
         agent.messages = history
         raise

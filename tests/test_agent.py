@@ -3,9 +3,10 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from app.agendev.agent_factory import AgentSettings, create_agent, prompt_error
+from app.agendev.agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
 from app.agendev.finance_tools import FINANCE_TOOLS
 from strands import Agent
+from strands.types.exceptions import ConcurrencyException
 
 
 class AgentSettingsTests(unittest.TestCase):
@@ -75,3 +76,24 @@ class AgentSettingsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RollbackTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.agent = Agent(callback_handler=None)
+        self.agent.messages = [{"role": "user", "content": [{"text": "hi"}]}]
+
+    def test_failed_turn_restores_history(self) -> None:
+        with self.assertRaises(RuntimeError):
+            with rollback_on_failure(self.agent):
+                self.agent.messages.append({"role": "user", "content": [{"text": "lost"}]})
+                raise RuntimeError
+        self.assertEqual(len(self.agent.messages), 1)
+
+    def test_concurrent_call_leaves_running_turn_history_alone(self) -> None:
+        with self.assertRaises(ConcurrencyException):
+            with rollback_on_failure(self.agent):
+                # The other, still-running turn adds to the history meanwhile.
+                self.agent.messages.append({"role": "assistant", "content": [{"text": "kept"}]})
+                raise ConcurrencyException("busy")
+        self.assertEqual(len(self.agent.messages), 2)
