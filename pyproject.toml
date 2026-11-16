@@ -1,0 +1,8 @@
+[project]
+name = "agendev"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.34.0",
+    "strands-agents>=1.65.0",
+]
