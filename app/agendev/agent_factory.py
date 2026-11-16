@@ -83,6 +83,22 @@ class AgentSettings:
             raise ValueError("AGENT_MAX_INPUT_CHARS must be greater than zero")
 
 
+def create_model(settings: AgentSettings) -> BedrockModel:
+    """The Bedrock model shared by the chat agent and the report graph."""
+    return BedrockModel(
+        model_id=settings.model_id,
+        region_name=settings.region,
+        max_tokens=settings.max_tokens,
+        boto_client_config=Config(
+            connect_timeout=5,
+            read_timeout=120,
+            # Strands retries throttling itself; keep SDK retries small so the
+            # two layers don't multiply into long waits before a failure.
+            retries={"max_attempts": 2, "mode": "standard"},
+        ),
+    )
+
+
 def create_agent(settings: AgentSettings | None = None, *, observe: bool = False) -> Agent:
     if settings is None:
         settings = AgentSettings.from_env()
@@ -98,18 +114,7 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
 
         hooks.append(ConsoleObservationHooks())
 
-    model = BedrockModel(
-        model_id=settings.model_id,
-        region_name=settings.region,
-        max_tokens=settings.max_tokens,
-        boto_client_config=Config(
-            connect_timeout=5,
-            read_timeout=120,
-            # Strands retries throttling itself; keep SDK retries small so the
-            # two layers don't multiply into long waits before a failure.
-            retries={"max_attempts": 2, "mode": "standard"},
-        ),
-    )
+    model = create_model(settings)
     # Models don't know today's date and treat recent data as "the future".
     system_prompt = f"{SYSTEM_PROMPT}\nToday's date is {date.today().isoformat()}."
     return Agent(

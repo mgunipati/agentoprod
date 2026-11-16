@@ -11,9 +11,11 @@ from datetime import datetime, timezone
 from app.agendev.agent_factory import (
     AgentSettings,
     create_agent,
+    create_model,
     prompt_error,
     rollback_on_failure,
 )
+from app.agendev.report_graph import create_report_graph, report_text
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -53,6 +55,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--region", help="Override AWS_REGION / AWS_DEFAULT_REGION.")
     parser.add_argument("--max-tokens", type=int, help="Override BEDROCK_MAX_TOKENS.")
     parser.add_argument("--observe", action="store_true", help="Log local Strands lifecycle and usage telemetry.")
+    parser.add_argument(
+        "--report", metavar="REQUEST",
+        help="Run the fetch → analyse → review stock report pipeline once and exit.",
+    )
     return parser.parse_args()
 
 
@@ -71,6 +77,8 @@ def main() -> int:
     configure_logging(logging.INFO if args.observe else logging.WARNING)
     logger = logging.getLogger("agentoprod")
     logger.info("agent_started", extra={"model_id": settings.model_id, "region": settings.region})
+    if args.report is not None:
+        return run_report(args.report, settings, logger)
     assistant = create_agent(settings, observe=args.observe)
     # Run each request on a worker thread so Ctrl+C can cancel it cleanly.
     executor = ThreadPoolExecutor(max_workers=1)
@@ -78,6 +86,34 @@ def main() -> int:
         return run(args, settings, assistant, executor, logger)
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
+
+
+def run_report(request: str, settings: AgentSettings, logger: logging.Logger) -> int:
+    """Run the report graph once; print the final report or why it failed."""
+    error = prompt_error(request, settings)
+    if error:
+        print(error, file=sys.stderr)
+        return 1
+    started = time.monotonic()
+    try:
+        result = create_report_graph(create_model(settings))(request)
+        report = report_text(result)
+    except KeyboardInterrupt:
+        print("\nReport cancelled.", file=sys.stderr)
+        return 130
+    except Exception as exc:
+        logger.error("report_failed", extra={"error_type": type(exc).__name__})
+        print(f"The report failed ({type(exc).__name__}).", file=sys.stderr)
+        return 1
+    logger.info(
+        "report_completed",
+        extra={
+            "duration_ms": round((time.monotonic() - started) * 1000),
+            "token_usage": dict(result.accumulated_usage),
+        },
+    )
+    print(report)
+    return 0
 
 
 def run(args, settings, assistant, executor, logger) -> int:

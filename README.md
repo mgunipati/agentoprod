@@ -83,6 +83,19 @@ with `agentcore add credentials api-key --name alpha-vantage --api-key -`
 provider name (`CREDENTIAL_ALPHA_VANTAGE_NAME`) and fetches the key on each
 call, which requires invoking the runtime with a user ID (`--user-id`).
 
+## Stock report graph
+
+`app/agendev/report_graph.py` builds a Strands Graph with a fixed flow:
+`fetch` (the only node with the Yahoo Finance tools) → `analyse` (compares using
+only the fetched data) → `review` (checks the numbers, removes recommendations
+and writes the final report). Unlike the chat agent, where the model chooses
+which tool or tutor to call, every report runs the same three steps. Run it once
+from the CLI:
+
+```bash
+uv run python cli.py --report "Compare RELIANCE.NS and TCS.NS"
+```
+
 ## AgentCore Runtime
 
 `app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.
