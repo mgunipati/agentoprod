@@ -46,7 +46,8 @@ uv run pytest
 
 ## Local observability
 
-Enable Strands lifecycle telemetry on standard error:
+The local CLI enables Strands lifecycle telemetry on standard error with
+`--observe`:
 
 ```bash
 uv run python cli.py --observe
@@ -85,9 +86,12 @@ call, which requires invoking the runtime with a user ID (`--user-id`).
 ## AgentCore Runtime
 
 `app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.
-The shared agent and finance modules live under `app/agendev/` and are imported
-by both the local CLI and runtime. Add any new dependency to both
-`pyproject.toml` files. Each runtime session
+The shared agent, finance, and observability modules live under `app/agendev/`
+and are imported by both the local CLI and runtime. The runtime always enables
+the lifecycle hooks and logs model/tool events with a per-invocation request ID;
+events omit prompts, responses, tool arguments, and tool results. AgentCore's
+application logger also records invocation completion and failure metadata.
+Add any new dependency to both `pyproject.toml` files. Each runtime session
 runs in its own microVM, so conversation history is kept in memory per
 session ID and lost when the session ends. `agentcore/` holds the AgentCore CLI
 project and its CDK stack.

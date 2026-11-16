@@ -10,6 +10,8 @@ the session ends or goes idle; AgentCore Memory is the way to keep it longer.
 """
 
 from functools import lru_cache
+import time
+import uuid
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
@@ -24,7 +26,7 @@ settings = AgentSettings.from_env()
 
 @lru_cache(maxsize=16)
 def agent_for_session(session_id: str) -> Agent:
-    return create_agent(settings)
+    return create_agent(settings, observe=True)
 
 
 @app.entrypoint
@@ -37,19 +39,34 @@ async def invoke(payload, context):
 
     session_id = getattr(context, "session_id", None) or "local"
     agent = agent_for_session(session_id)
+    request_id = str(uuid.uuid4())
+    started = time.monotonic()
 
     try:
         with rollback_on_failure(agent):
-            result = await agent.invoke_async(payload["prompt"])
+            result = await agent.invoke_async(
+                payload["prompt"],
+                invocation_state={"request_id": request_id},
+            )
     except ConcurrencyException:
         # The same session sent a new message before the last one finished.
-        log.warning("agent_busy")
+        log.warning("agent_busy request_id=%s", request_id)
         return {"error": "Still answering your previous message. Try again in a moment."}
     except Exception as exc:
-        log.error("agent_invocation_failed error_type=%s", type(exc).__name__)
+        log.error(
+            "agent_invocation_failed request_id=%s duration_ms=%s error_type=%s",
+            request_id,
+            round((time.monotonic() - started) * 1000),
+            type(exc).__name__,
+        )
         raise
 
-    log.info("agent_invocation_completed stop_reason=%s", result.stop_reason)
+    log.info(
+        "agent_invocation_completed request_id=%s duration_ms=%s stop_reason=%s",
+        request_id,
+        round((time.monotonic() - started) * 1000),
+        result.stop_reason,
+    )
     return {"result": str(result).strip(), "stop_reason": result.stop_reason}
 
 

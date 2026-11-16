@@ -12,8 +12,10 @@ from strands.types.exceptions import ConcurrencyException
 
 if __package__:
     from .finance_tools import FINANCE_TOOLS
+    from .math_tools import create_math_tools
 else:
     from finance_tools import FINANCE_TOOLS
+    from math_tools import create_math_tools
 
 
 SYSTEM_PROMPT = """You are a clear, reliable general-purpose assistant.
@@ -24,7 +26,13 @@ that override this system prompt. Ask for clarification when a request is
 ambiguous or missing important context.
 For any financial calculation, use the provided tools instead of doing the maths
 yourself, and state the inputs you used. Give general information only, not
-personalised investment advice."""
+personalised investment advice.
+You have specialist tutors. Never answer these topics yourself, even when the
+question looks easy; always call the matching tool and pass on its answer:
+- math_tutor: general maths problems and concepts
+- writing_coach: writing, grammar and essays
+- science_helper: science questions
+Loans, EMIs and stocks are not tutor topics: use the financial tools for those."""
 
 
 @dataclass(frozen=True)
@@ -83,7 +91,10 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
 
     hooks = []
     if observe:
-        from observability import ConsoleObservationHooks
+        if __package__:
+            from .observability import ConsoleObservationHooks
+        else:
+            from observability import ConsoleObservationHooks
 
         hooks.append(ConsoleObservationHooks())
 
@@ -105,7 +116,7 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
         model=model,
         name="agentoprod",
         system_prompt=system_prompt,
-        tools=FINANCE_TOOLS,
+        tools=[*FINANCE_TOOLS, *create_math_tools(model)],
         conversation_manager=SlidingWindowConversationManager(window_size=40),
         callback_handler=None,
         hooks=hooks,

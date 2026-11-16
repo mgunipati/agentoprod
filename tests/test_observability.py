@@ -11,7 +11,7 @@ from strands import Agent, tool
 from strands.models import Model
 
 import cli
-from observability import ConsoleObservationHooks
+from app.agendev.observability import ConsoleObservationHooks
 
 
 class FakeModel(Model):
