@@ -21,3 +21,10 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+# AgentCore CLI (commit agentcore/.cli/deployed-state.json so the stack binding is shared)
+.env*.local
+node_modules/
+agentcore/.cli/*
+!agentcore/.cli/deployed-state.json
+agentcore/.cache/
+agentcore/cdk/cdk.out/

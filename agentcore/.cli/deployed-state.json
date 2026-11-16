@@ -1,0 +1,10 @@
+{
+  "targets": {
+    "default": {
+      "stackArn": "arn:aws:cloudformation:ap-south-1:223956247301:stack/AgentCore-agendev-default/fdf57e20-e17a-11f1-99c6-0affc4d80f21",
+      "resources": {
+        "credentials": {}
+      }
+    }
+  }
+}

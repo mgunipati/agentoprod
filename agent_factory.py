@@ -89,7 +89,7 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
     )
     return Agent(
         model=model,
-        name="general-assistant",
+        name="agendev",
         system_prompt=SYSTEM_PROMPT,
         conversation_manager=SlidingWindowConversationManager(window_size=40),
         callback_handler=None,

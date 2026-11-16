@@ -59,7 +59,7 @@ class AgentSettingsTests(unittest.TestCase):
     def test_creates_agent_without_connecting_to_aws(self) -> None:
         agent = create_agent(AgentSettings())
         self.assertIsInstance(agent, Agent)
-        self.assertEqual(agent.name, "general-assistant")
+        self.assertEqual(agent.name, "agendev")
 
 
 if __name__ == "__main__":

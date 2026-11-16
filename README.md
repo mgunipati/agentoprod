@@ -63,6 +63,27 @@ sensitive data. Token usage is reported by the model provider via Strands and
 is not a cost or billing calculation. No external collector or dashboard is
 configured by this option.
 
+## AgentCore Runtime
+
+`app/agendev/main.py` wraps the same agent (`app/agendev/agent_factory.py` is a
+symlink to the root file) in the AgentCore HTTP contract. Each runtime session
+runs in its own microVM, so conversation history is kept in memory per
+session ID and lost when the session ends. `agentcore/` holds the AgentCore CLI
+project and its CDK stack.
+
+```bash
+(cd agentcore/cdk && npm install)
+agentcore dev --agent agendev            # local server on :8080
+agentcore invoke --local --runtime agendev \
+  --session-id session-0000000000000000000000000000001 \
+  --payload '{"prompt": "Hello"}'
+agentcore deploy --region ap-south-1     # creates AWS resources
+agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "Hello"}'
+```
+
+The deployed runtime uses IAM (SigV4) for inbound auth and public networking,
+which suits development only.
+
 ## Production considerations
 
 This repository provides a CLI baseline, not a complete hosted enterprise
