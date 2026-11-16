@@ -14,7 +14,7 @@ class ConsoleObservationHooks:
     """Log lifecycle metadata without including model or tool content."""
 
     def __init__(self) -> None:
-        self.logger = logging.getLogger("agendev.observe")
+        self.logger = logging.getLogger("agentoprod.observe")
 
     def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
         registry.add_callback(BeforeModelCallEvent, self.before_model)

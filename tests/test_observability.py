@@ -194,7 +194,7 @@ class ObservabilityTests(unittest.TestCase):
 
     def test_tool_hooks_emit_status_without_arguments_or_results(self):
         assistant = Agent(model=ToolModel(), tools=[echo], hooks=[ConsoleObservationHooks()], callback_handler=None)
-        with self.assertLogs("agendev.observe", level="INFO") as captured:
+        with self.assertLogs("agentoprod.observe", level="INFO") as captured:
             result = assistant("hello", invocation_state={"request_id": "request-1"})
 
         self.assertEqual(result.stop_reason, "end_turn")

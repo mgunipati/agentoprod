@@ -99,7 +99,7 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
     system_prompt = f"{SYSTEM_PROMPT}\nToday's date is {date.today().isoformat()}."
     return Agent(
         model=model,
-        name="agendev",
+        name="agentoprod",
         system_prompt=system_prompt,
         tools=FINANCE_TOOLS,
         conversation_manager=SlidingWindowConversationManager(window_size=40),

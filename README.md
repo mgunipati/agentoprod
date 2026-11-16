@@ -76,6 +76,12 @@ The Alpha Vantage tool reads `ALPHA_VANTAGE_API_KEY` from the environment
 (for example a local, git-ignored `.env`) and reports itself as not configured
 when the key is missing. Market data from both providers may be delayed.
 
+In AgentCore Runtime the key comes from AgentCore Identity instead: add it once
+with `agentcore add credentials api-key --name alpha-vantage --api-key -`
+(reading the key from standard input) and deploy. The runtime receives only the
+provider name (`CREDENTIAL_ALPHA_VANTAGE_NAME`) and fetches the key on each
+call, which requires invoking the runtime with a user ID (`--user-id`).
+
 ## AgentCore Runtime
 
 `app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.
@@ -88,12 +94,12 @@ project and its CDK stack.
 
 ```bash
 (cd agentcore/cdk && npm install)
-agentcore dev --agent agendev            # local server on :8080
-agentcore invoke --local --runtime agendev \
+agentcore dev --agent agentoprod            # local server on :8080
+agentcore invoke --local --runtime agentoprod \
   --session-id session-0000000000000000000000000000001 \
   --payload '{"prompt": "Hello"}'
 agentcore deploy --region ap-south-1     # creates AWS resources
-agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "Hello"}'
+agentcore invoke --runtime agentoprod --session-id ... --payload '{"prompt": "Hello"}'
 ```
 
 The deployed runtime uses IAM (SigV4) for inbound auth and public networking,

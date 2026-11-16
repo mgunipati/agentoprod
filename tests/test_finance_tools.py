@@ -1,4 +1,6 @@
 import os
+import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -84,6 +86,44 @@ class AlphaVantageTests(unittest.TestCase):
     def test_reports_missing_key(self):
         with patch.dict(os.environ, {}, clear=True):
             self.assertIn("not configured", ft.get_alpha_vantage_quote(symbol="AAPL")["error"])
+
+    @staticmethod
+    def fake_runtime_context(token):
+        """Stand-in for bedrock_agentcore, which only the runtime installs."""
+        module = types.ModuleType("bedrock_agentcore.runtime.context")
+        module.BedrockAgentCoreContext = MagicMock(**{"get_workload_access_token.return_value": token})
+        return {"bedrock_agentcore.runtime.context": module}
+
+    def test_fetches_key_from_agentcore_identity(self):
+        identity = MagicMock(**{"get_resource_api_key.return_value": {"apiKey": "from-identity"}})
+        with (
+            patch.dict(os.environ, {"CREDENTIAL_ALPHA_VANTAGE_NAME": "alpha-vantage-provider"}, clear=True),
+            patch.dict(sys.modules, self.fake_runtime_context("workload-token")),
+            patch.object(ft.boto3, "client", return_value=identity),
+        ):
+            self.assertEqual(ft._alpha_vantage_key(), "from-identity")
+
+        identity.get_resource_api_key.assert_called_once_with(
+            resourceCredentialProviderName="alpha-vantage-provider",
+            workloadIdentityToken="workload-token",
+        )
+
+    def test_identity_needs_a_user_identity(self):
+        with (
+            patch.dict(os.environ, {"CREDENTIAL_ALPHA_VANTAGE_NAME": "alpha-vantage-provider"}, clear=True),
+            patch.dict(sys.modules, self.fake_runtime_context(None)),
+        ):
+            self.assertIn("user ID", ft._alpha_vantage_key()["error"])
+
+    def test_identity_failure_is_reported_without_detail(self):
+        with (
+            patch.dict(os.environ, {"CREDENTIAL_ALPHA_VANTAGE_NAME": "p"}, clear=True),
+            patch.dict(sys.modules, self.fake_runtime_context("t")),
+            patch.object(ft.boto3, "client", side_effect=RuntimeError("secret detail")),
+        ):
+            result = ft.get_alpha_vantage_quote(symbol="AAPL")
+        self.assertIn("RuntimeError", result["error"])
+        self.assertNotIn("secret", result["error"])
 
     def test_normalises_quote_keys(self):
         client = MagicMock()

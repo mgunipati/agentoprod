@@ -1,4 +1,4 @@
-"""Financial tools for the agendev agent.
+"""Financial tools for the agentoprod agent.
 
 Template for adding a tool:
 1. Write a plain function with type hints and a docstring the model can read.
@@ -13,11 +13,12 @@ import logging
 import os
 import re
 
+import boto3
 import yfinance as yf
 from alpha_vantage.timeseries import TimeSeries
 from strands import tool
 
-logger = logging.getLogger("agendev.tools")
+logger = logging.getLogger("agentoprod.tools")
 
 # Tickers such as AAPL, RELIANCE.NS, BRK-B, ^NSEI (index) or INR=X (currency).
 _SYMBOL = re.compile(r"^[A-Z0-9^][A-Z0-9.\-=]{0,19}$")
@@ -216,6 +217,41 @@ def get_company_financials(symbol: str) -> dict:
     }
 
 
+# Name of the AgentCore Identity credential that holds the Alpha Vantage key.
+# The AgentCore CLI sets CREDENTIAL_ALPHA_VANTAGE_NAME in the runtime for a
+# credential added with `agentcore add credentials api-key --name alpha-vantage`.
+_ALPHA_VANTAGE_PROVIDER_ENV = "CREDENTIAL_ALPHA_VANTAGE_NAME"
+
+
+def _alpha_vantage_key() -> str | dict:
+    """Return the Alpha Vantage key, or an {"error": ...} dict.
+
+    On a laptop the key comes from ALPHA_VANTAGE_API_KEY (e.g. `uv run --env-file .env`).
+    In AgentCore Runtime it is fetched from AgentCore Identity on each call, so the
+    key is never stored in the code, the package or the runtime's settings.
+    """
+    key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    if key:
+        return key
+
+    provider = os.getenv(_ALPHA_VANTAGE_PROVIDER_ENV)
+    if not provider:
+        return {"error": "Alpha Vantage is not configured (no API key or AgentCore credential)."}
+
+    # Only available inside AgentCore Runtime, so import it here.
+    from bedrock_agentcore.runtime.context import BedrockAgentCoreContext
+
+    token = BedrockAgentCoreContext.get_workload_access_token()
+    if token is None:
+        return {"error": "Alpha Vantage needs a user identity: invoke the runtime with a user ID."}
+
+    client = boto3.client("bedrock-agentcore", region_name=os.environ.get("AWS_REGION"))
+    response = client.get_resource_api_key(
+        resourceCredentialProviderName=provider, workloadIdentityToken=token,
+    )
+    return response["apiKey"]
+
+
 @tool
 def get_alpha_vantage_quote(symbol: str) -> dict:
     """Get the latest stock quote from Alpha Vantage.
@@ -229,9 +265,12 @@ def get_alpha_vantage_quote(symbol: str) -> dict:
     ticker = _clean_symbol(symbol)
     if ticker is None:
         return _invalid_symbol(symbol)
-    key = os.getenv("ALPHA_VANTAGE_API_KEY")
-    if not key:
-        return {"error": "Alpha Vantage is not configured (ALPHA_VANTAGE_API_KEY is not set)."}
+    try:
+        key = _alpha_vantage_key()
+    except Exception as exc:
+        return _fetch_failed("get_alpha_vantage_quote", ticker, exc)
+    if isinstance(key, dict):
+        return key
     try:
         data, _ = TimeSeries(key=key, output_format="json").get_quote_endpoint(symbol=ticker)
     except Exception as exc:

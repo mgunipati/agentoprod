@@ -61,7 +61,7 @@ class AgentSettingsTests(unittest.TestCase):
     def test_creates_agent_without_connecting_to_aws(self) -> None:
         agent = create_agent(AgentSettings())
         self.assertIsInstance(agent, Agent)
-        self.assertEqual(agent.name, "agendev")
+        self.assertEqual(agent.name, "agentoprod")
         self.assertIn(f"Today's date is {date.today().isoformat()}.", agent.system_prompt)
         self.assertEqual(sorted(agent.tool_names), sorted(t.tool_name for t in FINANCE_TOOLS))
 

@@ -64,7 +64,7 @@ def main() -> int:
         return 2
 
     configure_logging(logging.INFO if args.observe else logging.WARNING)
-    logger = logging.getLogger("agendev")
+    logger = logging.getLogger("agentoprod")
     logger.info("agent_started", extra={"model_id": settings.model_id, "region": settings.region})
     assistant = create_agent(settings, observe=args.observe)
     # Run each request on a worker thread so Ctrl+C can cancel it cleanly.
