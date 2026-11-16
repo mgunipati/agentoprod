@@ -1,7 +1,7 @@
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 from botocore.config import Config
@@ -97,6 +97,16 @@ def create_model(settings: AgentSettings) -> BedrockModel:
             retries={"max_attempts": 2, "mode": "standard"},
         ),
     )
+
+
+# Graph and Swarm nodes write longer outputs than a chat reply (every fetched
+# figure, a full analysis), and running out mid-answer fails the whole run.
+MULTI_AGENT_MIN_MAX_TOKENS = 2048
+
+
+def create_multi_agent_model(settings: AgentSettings) -> BedrockModel:
+    """The model for the report Graph and research Swarm: at least 2048 output tokens."""
+    return create_model(replace(settings, max_tokens=max(settings.max_tokens, MULTI_AGENT_MIN_MAX_TOKENS)))
 
 
 def create_agent(settings: AgentSettings | None = None, *, observe: bool = False) -> Agent:

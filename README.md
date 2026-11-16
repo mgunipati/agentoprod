@@ -133,6 +133,17 @@ agentcore deploy --region ap-south-1     # creates AWS resources
 agentcore invoke --runtime agentoprod --session-id ... --payload '{"prompt": "Hello"}'
 ```
 
+An optional `mode` in the payload picks the multi-agent pattern. `chat` (the
+default) is the session's agent with its tools and tutors. `report` runs the
+stock report Graph and `swarm` runs the research Swarm; both build new agents
+for each request and keep no history. Swarm responses include the `path` the
+agents took.
+
+```bash
+agentcore invoke --runtime agendev --payload '{"prompt": "Compare RELIANCE.NS and TCS.NS", "mode": "report"}'
+agentcore invoke --runtime agendev --payload '{"prompt": "Compare RELIANCE.NS and TCS.NS", "mode": "swarm"}'
+```
+
 The deployed runtime uses IAM (SigV4) for inbound auth and public networking,
 which suits development only.
 

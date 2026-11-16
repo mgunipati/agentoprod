@@ -17,7 +17,7 @@ from strands.multiagent.swarm import SwarmResult
 from app.agendev.agent_factory import (
     AgentSettings,
     create_agent,
-    create_model,
+    create_multi_agent_model,
     prompt_error,
     rollback_on_failure,
 )
@@ -117,7 +117,7 @@ def run_once(
         return 1
     started = time.monotonic()
     try:
-        result = build(create_model(settings))(request)
+        result = build(create_multi_agent_model(settings))(request)
         text = answer(result)
     except KeyboardInterrupt:
         print(f"\n{name.capitalize()} cancelled.", file=sys.stderr)

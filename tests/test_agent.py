@@ -3,7 +3,13 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from app.agendev.agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
+from app.agendev.agent_factory import (
+    AgentSettings,
+    create_agent,
+    create_multi_agent_model,
+    prompt_error,
+    rollback_on_failure,
+)
 from app.agendev.finance_tools import FINANCE_TOOLS
 from strands import Agent
 from strands.types.exceptions import ConcurrencyException
@@ -76,6 +82,10 @@ class AgentSettingsTests(unittest.TestCase):
             first.tool_registry.registry["math_tutor"],
             second.tool_registry.registry["math_tutor"],
         )
+
+    def test_multi_agent_model_gets_at_least_2048_tokens(self) -> None:
+        self.assertEqual(create_multi_agent_model(AgentSettings(max_tokens=1024)).config["max_tokens"], 2048)
+        self.assertEqual(create_multi_agent_model(AgentSettings(max_tokens=4096)).config["max_tokens"], 4096)
 
     def test_prompt_error(self) -> None:
         settings = AgentSettings(max_input_chars=5)
