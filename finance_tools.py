@@ -32,6 +32,19 @@ def _clean_symbol(symbol: str) -> str | None:
     return symbol if _SYMBOL.match(symbol) else None
 
 
+def _invalid_symbol(symbol) -> dict:
+    # Echo at most 30 characters of what the model sent.
+    return {"error": f"{str(symbol)[:30]!r} is not a valid ticker symbol"}
+
+
+def _ticker_info(tool_name: str, ticker: str) -> dict:
+    """Fetch Yahoo's info dict; returns {"error": ...} on failure."""
+    try:
+        return yf.Ticker(ticker).info or {}
+    except Exception as exc:
+        return _fetch_failed(tool_name, ticker, exc)
+
+
 def _number(value, digits: int = 2):
     """Round numeric values; Yahoo leaves some fields empty, so keep None."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -96,11 +109,10 @@ def get_stock_price(symbol: str) -> dict:
     """
     ticker = _clean_symbol(symbol)
     if ticker is None:
-        return {"error": f"'{symbol}' is not a valid ticker symbol"}
-    try:
-        info = yf.Ticker(ticker).info
-    except Exception as exc:
-        return _fetch_failed("get_stock_price", ticker, exc)
+        return _invalid_symbol(symbol)
+    info = _ticker_info("get_stock_price", ticker)
+    if "error" in info:
+        return info
 
     price = _number(info.get("currentPrice") or info.get("regularMarketPrice"))
     if price is None:
@@ -133,7 +145,7 @@ def get_stock_history(symbol: str, period: str = "1mo") -> dict:
     """
     ticker = _clean_symbol(symbol)
     if ticker is None:
-        return {"error": f"'{symbol}' is not a valid ticker symbol"}
+        return _invalid_symbol(symbol)
     if period not in _PERIODS:
         return {"error": f"period must be one of {', '.join(sorted(_PERIODS))}"}
     try:
@@ -177,11 +189,10 @@ def get_company_financials(symbol: str) -> dict:
     """
     ticker = _clean_symbol(symbol)
     if ticker is None:
-        return {"error": f"'{symbol}' is not a valid ticker symbol"}
-    try:
-        info = yf.Ticker(ticker).info
-    except Exception as exc:
-        return _fetch_failed("get_company_financials", ticker, exc)
+        return _invalid_symbol(symbol)
+    info = _ticker_info("get_company_financials", ticker)
+    if "error" in info:
+        return info
 
     def percent(key: str):
         value = _number(info.get(key), 6)
@@ -217,7 +228,7 @@ def get_alpha_vantage_quote(symbol: str) -> dict:
     """
     ticker = _clean_symbol(symbol)
     if ticker is None:
-        return {"error": f"'{symbol}' is not a valid ticker symbol"}
+        return _invalid_symbol(symbol)
     key = os.getenv("ALPHA_VANTAGE_API_KEY")
     if not key:
         return {"error": "Alpha Vantage is not configured (ALPHA_VANTAGE_API_KEY is not set)."}

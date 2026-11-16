@@ -93,16 +93,24 @@ def echo(text: str) -> str:
 
 
 class ObservabilityTests(unittest.TestCase):
-    def run_cli(self, args):
+    def run_cli(self, args=(), *, model=None, inputs=None, executor=None):
+        """Run cli.main() with a fake model; returns (exit code, stdout, stderr)."""
         stdout, stderr = io.StringIO(), io.StringIO()
-        with (
-            patch.object(sys, "argv", ["cli.py", *args]),
-            patch("agent_factory.BedrockModel", return_value=FakeModel()),
-            contextlib.redirect_stdout(stdout),
-            contextlib.redirect_stderr(stderr),
-        ):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(patch.object(sys, "argv", ["cli.py", *args]))
+            stack.enter_context(patch("agent_factory.BedrockModel", return_value=model or FakeModel()))
+            if inputs is not None:
+                stack.enter_context(patch("builtins.input", side_effect=inputs))
+            if executor is not None:
+                stack.enter_context(patch.object(cli, "ThreadPoolExecutor", executor))
+            stack.enter_context(contextlib.redirect_stdout(stdout))
+            stack.enter_context(contextlib.redirect_stderr(stderr))
             exit_code = cli.main()
         return exit_code, stdout.getvalue(), stderr.getvalue()
+
+    @staticmethod
+    def json_records(stderr):
+        return [json.loads(line) for line in stderr.splitlines() if line.startswith("{")]
 
     def test_observe_emits_correlated_metadata_without_content(self):
         code, stdout, stderr = self.run_cli(["--observe", "--prompt", "private-prompt"])
@@ -111,7 +119,7 @@ class ObservabilityTests(unittest.TestCase):
         self.assertIn("private-response", stdout)
         self.assertNotIn("private-prompt", stderr)
         self.assertNotIn("private-response", stderr)
-        records = [json.loads(line) for line in stderr.splitlines()]
+        records = self.json_records(stderr)
         by_message = {record["message"]: record for record in records}
         start = by_message["model_call_started"]
         end = by_message["model_call_completed"]
@@ -130,23 +138,14 @@ class ObservabilityTests(unittest.TestCase):
 
     def test_failed_request_is_dropped_from_history(self):
         model = FlakyModel()
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with (
-            patch.object(sys, "argv", ["cli.py"]),
-            patch("agent_factory.BedrockModel", return_value=model),
-            patch("builtins.input", side_effect=["first", "second", "/exit"]),
-            contextlib.redirect_stdout(stdout),
-            contextlib.redirect_stderr(stderr),
-        ):
-            code = cli.main()
+        code, stdout, stderr = self.run_cli(model=model, inputs=["first", "second", "/exit"])
 
         self.assertEqual(code, 0)
-        self.assertIn("The request failed (RuntimeError)", stderr.getvalue())
-        self.assertIn("private-response", stdout.getvalue())
+        self.assertIn("The request failed (RuntimeError)", stderr)
+        self.assertIn("private-response", stdout)
         self.assertEqual(model.roles_seen, [["user"]])
 
     def test_ctrl_c_cancels_request_and_keeps_session(self):
-        stdout, stderr = io.StringIO(), io.StringIO()
         class InterruptFirstWait(ThreadPoolExecutor):
             """Simulate Ctrl+C arriving while the first request is running."""
 
@@ -170,18 +169,12 @@ class ObservabilityTests(unittest.TestCase):
                 return future
 
         model = RecordingModel()
-        with (
-            patch.object(sys, "argv", ["cli.py"]),
-            patch("agent_factory.BedrockModel", return_value=model),
-            patch.object(cli, "ThreadPoolExecutor", InterruptFirstWait),
-            patch("builtins.input", side_effect=["first", "second", "/exit"]),
-            contextlib.redirect_stdout(stdout),
-            contextlib.redirect_stderr(stderr),
-        ):
-            code = cli.main()
+        code, _, stderr = self.run_cli(
+            model=model, inputs=["first", "second", "/exit"], executor=InterruptFirstWait,
+        )
 
         self.assertEqual(code, 0)
-        self.assertIn("Request cancelled.", stderr.getvalue())
+        self.assertIn("Request cancelled.", stderr)
         self.assertEqual(model.roles_seen, [["user"], ["user"]])
 
     def test_cli_overrides_invalid_environment_settings(self):
@@ -212,37 +205,21 @@ class ObservabilityTests(unittest.TestCase):
         self.assertNotIn("private-tool-input", repr([record.__dict__ for record in captured.records]))
 
     def test_interactive_usage_is_per_request(self):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with (
-            patch.object(sys, "argv", ["cli.py", "--observe"]),
-            patch("agent_factory.BedrockModel", return_value=FakeModel()),
-            patch("builtins.input", side_effect=["first", "second", "/exit"]),
-            contextlib.redirect_stdout(stdout),
-            contextlib.redirect_stderr(stderr),
-        ):
-            code = cli.main()
+        code, _, stderr = self.run_cli(["--observe"], inputs=["first", "second", "/exit"])
 
         self.assertEqual(code, 0)
-        records = [json.loads(line) for line in stderr.getvalue().splitlines()]
-        completed = [record for record in records if record["message"] == "agent_invocation_completed"]
+        completed = [r for r in self.json_records(stderr) if r["message"] == "agent_invocation_completed"]
         self.assertEqual(len(completed), 2)
         self.assertNotEqual(completed[0]["request_id"], completed[1]["request_id"])
         self.assertEqual([record["token_usage"]["inputTokens"] for record in completed], [12, 12])
 
     def test_failed_call_reports_error_without_private_detail(self):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with (
-            patch.object(sys, "argv", ["cli.py", "--observe", "--prompt", "hello"]),
-            patch("agent_factory.BedrockModel", return_value=FailingModel()),
-            contextlib.redirect_stdout(stdout),
-            contextlib.redirect_stderr(stderr),
-        ):
-            code = cli.main()
+        code, _, stderr = self.run_cli(["--observe", "--prompt", "hello"], model=FailingModel())
 
         self.assertEqual(code, 1)
-        self.assertIn("RuntimeError", stderr.getvalue())
-        self.assertNotIn("private-error-detail", stderr.getvalue())
-        records = [json.loads(line) for line in stderr.getvalue().splitlines() if line.startswith("{")]
+        self.assertIn("RuntimeError", stderr)
+        self.assertNotIn("private-error-detail", stderr)
+        records = self.json_records(stderr)
         model_end = next(record for record in records if record["message"] == "model_call_completed")
         failure = next(record for record in records if record["message"] == "agent_invocation_failed")
         self.assertEqual(model_end["status"], "error")

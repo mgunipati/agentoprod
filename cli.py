@@ -8,7 +8,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-from agent_factory import AgentSettings, create_agent
+from agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -78,33 +78,28 @@ def main() -> int:
 def run(args, settings, assistant, executor, logger) -> int:
 
     def respond(prompt: str) -> bool:
-        if not prompt.strip():
-            print("Enter a non-empty message.", file=sys.stderr)
-            return False
-        if len(prompt) > settings.max_input_chars:
-            print(
-                f"Message exceeds the {settings.max_input_chars}-character limit.",
-                file=sys.stderr,
-            )
+        error = prompt_error(prompt, settings)
+        if error:
+            print(error, file=sys.stderr)
             return False
 
         started = time.monotonic()
         request_id = str(uuid.uuid4()) if args.observe else None
-        # Strands records the user message before calling the model and keeps it
-        # when the call fails. Restore the prior history so the next request does
-        # not send two consecutive user messages, which Bedrock rejects.
-        history = list(assistant.messages)
-        future = executor.submit(
-            assistant, prompt,
-            invocation_state={"request_id": request_id} if request_id else None,
-        )
         try:
-            result = future.result()
+            with rollback_on_failure(assistant):
+                future = executor.submit(
+                    assistant, prompt,
+                    invocation_state={"request_id": request_id} if request_id else None,
+                )
+                try:
+                    result = future.result()
+                except KeyboardInterrupt:
+                    # Stop the running turn and wait for it before the rollback.
+                    assistant.cancel()
+                    with contextlib.suppress(Exception):
+                        future.result()
+                    raise
         except KeyboardInterrupt:
-            assistant.cancel()
-            with contextlib.suppress(Exception):
-                future.result()
-            assistant.messages = history
             logger.warning(
                 "agent_invocation_cancelled",
                 extra={
@@ -115,7 +110,6 @@ def run(args, settings, assistant, executor, logger) -> int:
             print("\nRequest cancelled.", file=sys.stderr)
             return False
         except Exception as exc:
-            assistant.messages = history
             logger.error(
                 "agent_invocation_failed",
                 extra={

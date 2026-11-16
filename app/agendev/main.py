@@ -14,7 +14,7 @@ from functools import lru_cache
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
 
-from agent_factory import AgentSettings, create_agent
+from agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
 
 app = BedrockAgentCoreApp()
 log = app.logger
@@ -28,22 +28,19 @@ def agent_for_session(session_id: str) -> Agent:
 
 @app.entrypoint
 async def invoke(payload, context):
-    prompt = payload.get("prompt") if isinstance(payload, dict) else None
-    if not isinstance(prompt, str) or not prompt.strip():
+    if not isinstance(payload, dict) or "prompt" not in payload:
         return {"error": "Send a JSON body like {\"prompt\": \"...\"}."}
-    if len(prompt) > settings.max_input_chars:
-        return {"error": f"Prompt exceeds the {settings.max_input_chars}-character limit."}
+    error = prompt_error(payload["prompt"], settings)
+    if error:
+        return {"error": error}
 
     session_id = getattr(context, "session_id", None) or "local"
     agent = agent_for_session(session_id)
 
-    # Same fix as the CLI: drop a failed turn so the next one doesn't send two
-    # user messages in a row.
-    history = list(agent.messages)
     try:
-        result = await agent.invoke_async(prompt)
+        with rollback_on_failure(agent):
+            result = await agent.invoke_async(payload["prompt"])
     except Exception as exc:
-        agent.messages = history
         log.error("agent_invocation_failed error_type=%s", type(exc).__name__)
         raise
 

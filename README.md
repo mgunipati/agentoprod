@@ -63,10 +63,25 @@ sensitive data. Token usage is reported by the model provider via Strands and
 is not a cost or billing calculation. No external collector or dashboard is
 configured by this option.
 
+## Financial tools
+
+`finance_tools.py` gives the agent a loan EMI calculator, Yahoo Finance tools
+for current price, price history and company financials, and an Alpha Vantage
+quote tool. Each tool validates its arguments, returns a dict that includes the
+listed currency, and reports fetch failures without exception details. To add
+a tool, follow the template in the module docstring and append it to
+`FINANCE_TOOLS`.
+
+The Alpha Vantage tool reads `ALPHA_VANTAGE_API_KEY` from the environment
+(for example a local, git-ignored `.env`) and reports itself as not configured
+when the key is missing. Market data from both providers may be delayed.
+
 ## AgentCore Runtime
 
-`app/agendev/main.py` wraps the same agent (`app/agendev/agent_factory.py` is a
-symlink to the root file) in the AgentCore HTTP contract. Each runtime session
+`app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.
+`app/agendev/agent_factory.py` and `app/agendev/finance_tools.py` are symlinks
+to the root files, so edit those, and add any new dependency to both
+`pyproject.toml` files. Each runtime session
 runs in its own microVM, so conversation history is kept in memory per
 session ID and lost when the session ends. `agentcore/` holds the AgentCore CLI
 project and its CDK stack.

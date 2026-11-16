@@ -1,10 +1,13 @@
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from botocore.config import Config
 from strands import Agent
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.models import BedrockModel
+
 from finance_tools import FINANCE_TOOLS
 
 
@@ -100,3 +103,28 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
         callback_handler=None,
         hooks=hooks,
     )
+
+
+def prompt_error(prompt: object, settings: AgentSettings) -> str | None:
+    """Return why a prompt can't be sent, or None if it is fine."""
+    if not isinstance(prompt, str) or not prompt.strip():
+        return "Enter a non-empty message."
+    if len(prompt) > settings.max_input_chars:
+        return f"Message exceeds the {settings.max_input_chars}-character limit."
+    return None
+
+
+@contextmanager
+def rollback_on_failure(agent: Agent) -> Iterator[None]:
+    """Restore the agent's history if the turn inside this block fails.
+
+    Strands records the user message before calling the model and keeps it when
+    the call fails or is cancelled. Without the rollback, the next request would
+    send two user messages in a row, which Bedrock rejects.
+    """
+    history = list(agent.messages)
+    try:
+        yield
+    except BaseException:
+        agent.messages = history
+        raise

@@ -2,7 +2,8 @@ import os
 import unittest
 from unittest.mock import patch
 
-from agent_factory import AgentSettings, create_agent
+from agent_factory import AgentSettings, create_agent, prompt_error
+from finance_tools import FINANCE_TOOLS
 from strands import Agent
 
 
@@ -60,6 +61,14 @@ class AgentSettingsTests(unittest.TestCase):
         agent = create_agent(AgentSettings())
         self.assertIsInstance(agent, Agent)
         self.assertEqual(agent.name, "agendev")
+        self.assertEqual(sorted(agent.tool_names), sorted(t.tool_name for t in FINANCE_TOOLS))
+
+    def test_prompt_error(self) -> None:
+        settings = AgentSettings(max_input_chars=5)
+        self.assertIsNone(prompt_error("hello", settings))
+        self.assertIn("non-empty", prompt_error("  ", settings))
+        self.assertIn("non-empty", prompt_error(None, settings))
+        self.assertIn("limit", prompt_error("too long", settings))
 
 
 if __name__ == "__main__":

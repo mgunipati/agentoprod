@@ -98,16 +98,5 @@ class AlphaVantageTests(unittest.TestCase):
         self.assertEqual(result["symbol"], "AAPL")
 
 
-class ToolListTests(unittest.TestCase):
-    def test_agent_registers_all_finance_tools(self):
-        from agent_factory import AgentSettings, create_agent
-
-        agent = create_agent(AgentSettings())
-        self.assertEqual(
-            sorted(agent.tool_names),
-            sorted(tool.tool_name for tool in ft.FINANCE_TOOLS),
-        )
-
-
 if __name__ == "__main__":
     unittest.main()
