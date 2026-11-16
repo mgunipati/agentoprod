@@ -155,11 +155,16 @@ def get_stock_history(symbol: str, period: str = "1mo") -> dict:
         currency = stock.history_metadata.get("currency") if not hist.empty else None
     except Exception as exc:
         return _fetch_failed("get_stock_history", ticker, exc)
+    # Yahoo often includes today's row before the market closes, with no Close;
+    # NaN is not valid JSON and would reach the model as "end_price": NaN.
+    hist = hist.dropna(subset=["Close"])
     if hist.empty:
         return {"error": f"No historical data available for {ticker} over {period}"}
 
     start_price = float(hist["Close"].iloc[0])
     end_price = float(hist["Close"].iloc[-1])
+    if start_price == 0:
+        return {"error": f"Historical data for {ticker} starts at a zero price"}
     return {
         "symbol": ticker,
         "period": period,

@@ -96,6 +96,20 @@ from the CLI:
 uv run python cli.py --report "Compare RELIANCE.NS and TCS.NS"
 ```
 
+## Research swarm
+
+`app/agendev/research_swarm.py` builds a Strands Swarm of three agents —
+`researcher` (the only one with data tools), `analyst` and `writer` — that pass
+work to each other with a `handoff_to_agent` tool. Unlike the report graph, the
+agents choose the path: a loan question may go researcher → writer, and the
+analyst can send the researcher back for missing data. Limits on handoffs, time
+and back-and-forth between two agents stop a swarm that gets stuck. Run it once
+from the CLI; `--observe` logs the path the agents took:
+
+```bash
+uv run python cli.py --observe --swarm "Compare RELIANCE.NS and TCS.NS"
+```
+
 ## AgentCore Runtime
 
 `app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.

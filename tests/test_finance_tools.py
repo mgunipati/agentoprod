@@ -81,6 +81,22 @@ class StockHistoryTests(unittest.TestCase):
         self.assertEqual(result["high"], 112)
         self.assertEqual(list(result["last_5_closes"]), ["2026-11-02", "2026-11-03", "2026-11-04"])
 
+    def test_ignores_todays_row_without_a_close(self):
+        # Seen live: Yahoo returns today's row with a NaN close while the market is open.
+        index = pd.date_range("2026-11-02", periods=3, freq="D")
+        hist = pd.DataFrame(
+            {"Close": [100.0, 110.0, float("nan")], "High": [101, 112, 113], "Low": [99, 108, 107], "Volume": [10, 20, 5]},
+            index=index,
+        )
+        stock = MagicMock(history_metadata={"currency": "INR"})
+        stock.history.return_value = hist
+        with patch.object(ft.yf, "Ticker", return_value=stock):
+            result = ft.get_stock_history(symbol="TCS.NS", period="5d")
+
+        self.assertEqual(result["end_price"], 110.0)
+        self.assertEqual(result["change_percent"], 10.0)
+        self.assertNotIn("2026-11-04", result["last_5_closes"])
+
 
 class AlphaVantageTests(unittest.TestCase):
     def test_reports_missing_key(self):
