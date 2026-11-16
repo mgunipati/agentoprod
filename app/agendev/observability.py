@@ -9,6 +9,28 @@ from strands.hooks.events import (
     BeforeToolCallEvent,
 )
 
+# Fields the hooks and tools pass as `extra`. JSON formatters (the CLI) print them
+# as keys; plain-text formats (AgentCore Runtime) print only the message.
+_FIELDS = ("request_id", "tool_name", "tool_use_id", "status", "stop_reason", "duration_ms", "error_type")
+
+
+class FieldsInMessageFilter(logging.Filter):
+    """Append `extra` fields to the message as key=value for plain-text logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        parts = [f"{key}={getattr(record, key)}" for key in _FIELDS if getattr(record, key, None) is not None]
+        if parts:
+            record.msg = f"{record.msg} {' '.join(parts)}"
+        return True
+
+
+def log_fields_in_message() -> None:
+    """Make the agent's own loggers show their fields in plain-text log formats."""
+    for name in ("agentoprod.observe", "agentoprod.tools"):
+        logger = logging.getLogger(name)
+        if not any(isinstance(f, FieldsInMessageFilter) for f in logger.filters):
+            logger.addFilter(FieldsInMessageFilter())
+
 
 class ConsoleObservationHooks:
     """Log lifecycle metadata without including model or tool content."""

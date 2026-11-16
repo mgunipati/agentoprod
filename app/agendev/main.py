@@ -18,8 +18,11 @@ from strands import Agent
 from strands.types.exceptions import ConcurrencyException
 
 from agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
+from observability import log_fields_in_message
 
 app = BedrockAgentCoreApp()
+# AgentCore's log format prints only the message text, so put the fields in it.
+log_fields_in_message()
 log = app.logger
 settings = AgentSettings.from_env()
 

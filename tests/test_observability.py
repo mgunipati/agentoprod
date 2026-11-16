@@ -1,3 +1,4 @@
+import logging
 import contextlib
 import io
 import json
@@ -11,7 +12,7 @@ from strands import Agent, tool
 from strands.models import Model
 
 import cli
-from app.agendev.observability import ConsoleObservationHooks
+from app.agendev.observability import ConsoleObservationHooks, FieldsInMessageFilter
 
 
 class FakeModel(Model):
@@ -226,6 +227,14 @@ class ObservabilityTests(unittest.TestCase):
         failure = next(record for record in records if record["message"] == "agent_invocation_failed")
         self.assertEqual(model_end["status"], "error")
         self.assertEqual(model_end["request_id"], failure["request_id"])
+
+
+class FieldsInMessageFilterTests(unittest.TestCase):
+    def test_appends_extra_fields_to_plain_text_message(self) -> None:
+        record = logging.LogRecord("agentoprod.observe", logging.INFO, __file__, 1, "tool_call_started", None, None)
+        record.request_id, record.tool_name, record.error_type = "r-1", "science_helper", None
+        FieldsInMessageFilter().filter(record)
+        self.assertEqual(record.getMessage(), "tool_call_started request_id=r-1 tool_name=science_helper")
 
 
 if __name__ == "__main__":
