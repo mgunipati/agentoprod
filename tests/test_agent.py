@@ -8,6 +8,7 @@ from app.agendev.agent_factory import (
     create_agent,
     create_multi_agent_model,
     prompt_error,
+    reply_text,
     rollback_on_failure,
 )
 from app.agendev.finance_tools import FINANCE_TOOLS
@@ -86,6 +87,11 @@ class AgentSettingsTests(unittest.TestCase):
     def test_multi_agent_model_gets_at_least_2048_tokens(self) -> None:
         self.assertEqual(create_multi_agent_model(AgentSettings(max_tokens=1024)).config["max_tokens"], 2048)
         self.assertEqual(create_multi_agent_model(AgentSettings(max_tokens=4096)).config["max_tokens"], 4096)
+
+    def test_reply_text_removes_thinking(self) -> None:
+        reply = "<thinking>The user wants\na square.</thinking>\n\n12 squared is 144. <thinking>done</thinking>"
+        self.assertEqual(reply_text(reply), "12 squared is 144.")
+        self.assertEqual(reply_text("  No reasoning here. "), "No reasoning here.")
 
     def test_prompt_error(self) -> None:
         settings = AgentSettings(max_input_chars=5)

@@ -21,8 +21,10 @@ from strands.multiagent.graph import Graph, GraphResult
 
 if __package__:
     from .finance_tools import get_company_financials, get_stock_history, get_stock_price
+    from .agent_factory import reply_text
 else:
     from finance_tools import get_company_financials, get_stock_history, get_stock_price
+    from agent_factory import reply_text
 
 FETCH_PROMPT = """You collect market data for a stock report. Use the tools to get
 the current price, price history and company financials for every company in the
@@ -77,4 +79,4 @@ def report_text(result: GraphResult) -> str:
     if result.status != Status.COMPLETED or review is None or review.status != Status.COMPLETED:
         failed = [node_id for node_id, node in result.results.items() if node.status == Status.FAILED]
         raise RuntimeError(f"Report pipeline did not complete (failed nodes: {failed or 'none'})")
-    return "\n".join(str(agent_result).strip() for agent_result in review.get_agent_results())
+    return "\n".join(reply_text(agent_result) for agent_result in review.get_agent_results())

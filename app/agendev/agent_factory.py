@@ -1,4 +1,5 @@
 import os
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -136,6 +137,15 @@ def create_agent(settings: AgentSettings | None = None, *, observe: bool = False
         callback_handler=None,
         hooks=hooks,
     )
+
+
+# Nova models sometimes write their reasoning in <thinking> tags in the reply.
+_THINKING = re.compile(r"<thinking>.*?</thinking>", re.DOTALL)
+
+
+def reply_text(result: object) -> str:
+    """An agent result as text for the user, without <thinking> reasoning."""
+    return _THINKING.sub("", str(result)).strip()
 
 
 def prompt_error(prompt: object, settings: AgentSettings) -> str | None:

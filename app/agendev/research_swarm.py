@@ -22,8 +22,10 @@ from strands.multiagent.swarm import SwarmResult
 
 if __package__:
     from .finance_tools import get_company_financials, get_stock_history, get_stock_price, loan_emi
+    from .agent_factory import reply_text
 else:
     from finance_tools import get_company_financials, get_stock_history, get_stock_price, loan_emi
+    from agent_factory import reply_text
 
 RESEARCHER_PROMPT = """You are the researcher in a team of financial agents. Use your
 tools to collect the facts the request needs: prices, history, financials or loan
@@ -85,7 +87,7 @@ def swarm_answer(result: SwarmResult) -> str:
         path = " → ".join(node.node_id for node in result.node_history) or "none"
         raise RuntimeError(f"Swarm did not complete (status: {result.status.value}, path: {path})")
     last = result.results[result.node_history[-1].node_id]
-    return "\n".join(str(agent_result).strip() for agent_result in last.get_agent_results())
+    return "\n".join(reply_text(agent_result) for agent_result in last.get_agent_results())
 
 
 def handoff_path(result: SwarmResult) -> str:

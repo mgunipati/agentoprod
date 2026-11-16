@@ -125,12 +125,12 @@ project and its CDK stack.
 
 ```bash
 (cd agentcore/cdk && npm install)
-agentcore dev --agent agentoprod            # local server on :8080
-agentcore invoke --local --runtime agentoprod \
+agentcore dev --agent agendev               # local server on :8080
+agentcore invoke --local --runtime agendev \
   --session-id session-0000000000000000000000000000001 \
   --payload '{"prompt": "Hello"}'
 agentcore deploy --region ap-south-1     # creates AWS resources
-agentcore invoke --runtime agentoprod --session-id ... --payload '{"prompt": "Hello"}'
+agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "Hello"}'
 ```
 
 An optional `mode` in the payload picks the multi-agent pattern. `chat` (the

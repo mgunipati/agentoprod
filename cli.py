@@ -19,6 +19,7 @@ from app.agendev.agent_factory import (
     create_agent,
     create_multi_agent_model,
     prompt_error,
+    reply_text,
     rollback_on_failure,
 )
 from app.agendev.report_graph import create_report_graph, report_text
@@ -199,7 +200,7 @@ def run(args, settings, assistant, executor, logger) -> int:
                 ),
             },
         )
-        print(str(result).strip())
+        print(reply_text(result))
         return True
 
     if args.prompt is not None:

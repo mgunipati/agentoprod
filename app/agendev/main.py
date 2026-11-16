@@ -24,7 +24,7 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
 from strands.types.exceptions import ConcurrencyException
 
-from agent_factory import AgentSettings, create_agent, create_multi_agent_model, prompt_error, rollback_on_failure
+from agent_factory import AgentSettings, create_agent, create_multi_agent_model, prompt_error, reply_text, rollback_on_failure
 from observability import log_fields_in_message
 from report_graph import create_report_graph, report_text
 from research_swarm import create_research_swarm, handoff_path, swarm_answer
@@ -95,7 +95,7 @@ async def run_chat(prompt: str, context, request_id: str) -> dict:
     agent = agent_for_session(session_id)
     with rollback_on_failure(agent):
         result = await agent.invoke_async(prompt, invocation_state={"request_id": request_id})
-    return {"result": str(result).strip(), "stop_reason": result.stop_reason}
+    return {"result": reply_text(result), "stop_reason": result.stop_reason}
 
 
 async def run_one_shot(mode: str, prompt: str) -> dict:
