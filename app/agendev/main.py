@@ -25,6 +25,7 @@ from strands import Agent
 from strands.types.exceptions import ConcurrencyException
 
 from agent_factory import AgentSettings, create_agent, create_multi_agent_model, prompt_error, reply_text, rollback_on_failure
+from memory_session import valid_memory_id
 from observability import log_fields_in_message
 from report_graph import create_report_graph, report_text
 from research_swarm import create_research_swarm, handoff_path, swarm_answer
@@ -44,8 +45,12 @@ MODES = ("chat", *ONE_SHOT_MODES)
 
 
 @lru_cache(maxsize=16)
-def agent_for_session(session_id: str) -> Agent:
-    return create_agent(settings, observe=True)
+def agent_for_session(session_id: str, user_id: str) -> Agent:
+    """One chat agent per (session, user); with AgentCore Memory it reloads saved history."""
+    if not valid_memory_id(session_id):
+        log.warning("memory_skipped reason=session_id_format")
+        return create_agent(settings, observe=True)
+    return create_agent(settings, observe=True, session_id=session_id, actor_id=user_id)
 
 
 @app.entrypoint
@@ -58,6 +63,11 @@ async def invoke(payload, context):
     mode = payload.get("mode", "chat")
     if mode not in MODES:
         return {"error": f"mode must be one of: {', '.join(MODES)}."}
+    # Long-term memory is per user. Callers should send a stable ID for the
+    # user, not personal data such as an email address.
+    user_id = payload.get("user_id", "anonymous")
+    if not valid_memory_id(user_id):
+        return {"error": "user_id must start with a letter or digit and use only letters, digits, '-' or '_'."}
 
     request_id = str(uuid.uuid4())
     started = time.monotonic()
@@ -67,7 +77,7 @@ async def invoke(payload, context):
 
     try:
         if mode == "chat":
-            response = await run_chat(payload["prompt"], context, request_id)
+            response = await run_chat(payload["prompt"], context, user_id, request_id)
         else:
             response = await run_one_shot(mode, payload["prompt"])
     except ConcurrencyException:
@@ -89,10 +99,10 @@ async def invoke(payload, context):
     return {**response, "mode": mode}
 
 
-async def run_chat(prompt: str, context, request_id: str) -> dict:
+async def run_chat(prompt: str, context, user_id: str, request_id: str) -> dict:
     """One turn with the session's agent; its history persists for the session."""
     session_id = getattr(context, "session_id", None) or "local"
-    agent = agent_for_session(session_id)
+    agent = agent_for_session(session_id, user_id)
     with rollback_on_failure(agent):
         result = await agent.invoke_async(prompt, invocation_state={"request_id": request_id})
     return {"result": reply_text(result), "stop_reason": result.stop_reason}

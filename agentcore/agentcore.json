@@ -12,7 +12,27 @@
       "protocol": "HTTP"
     }
   ],
-  "memories": [],
+  "memories": [
+    {
+      "name": "chat",
+      "description": "Chat history and long-term user facts",
+      "eventExpiryDuration": 30,
+      "strategies": [
+        {
+          "type": "SEMANTIC",
+          "namespaceTemplates": [
+            "/users/{actorId}/facts"
+          ]
+        },
+        {
+          "type": "USER_PREFERENCE",
+          "namespaceTemplates": [
+            "/users/{actorId}/preferences"
+          ]
+        }
+      ]
+    }
+  ],
   "knowledgeBases": [],
   "credentials": [],
   "evaluators": [],

@@ -147,6 +147,28 @@ agentcore invoke --runtime agendev --payload '{"prompt": "Compare RELIANCE.NS an
 The deployed runtime uses IAM (SigV4) for inbound auth and public networking,
 which suits development only.
 
+## AgentCore Memory
+
+The `chat` memory in `agentcore/agentcore.json` gives the deployed runtime
+`MEMORY_CHAT_ID`. With it set, `app/agendev/memory_session.py` attaches an
+AgentCore Memory session manager to the chat agent:
+
+- **Short-term:** every message is saved as an event for the user and session,
+  and reloaded when a new microVM picks up the same session. Turns that failed
+  before getting a reply are dropped on reload.
+- **Long-term:** AgentCore extracts facts (`/users/{actorId}/facts`) and
+  preferences (`/users/{actorId}/preferences`) in the background. Matching
+  records are added to each user message inside `<user_context>` tags, so the
+  agent remembers a user across sessions.
+
+The user is the payload's optional `user_id` (default `anonymous`); send a
+stable ID, not personal data. Raw events expire after 30 days. Without
+`MEMORY_CHAT_ID`, as in the local CLI, history stays in process memory.
+
+```bash
+agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "My home loan is 10 lakh at 9%", "user_id": "user-42"}'
+```
+
 ## Production considerations
 
 This repository provides a CLI baseline, not a complete hosted enterprise
