@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-import finance_tools as ft
+from app.agendev import finance_tools as ft
 
 
 class LoanEmiTests(unittest.TestCase):

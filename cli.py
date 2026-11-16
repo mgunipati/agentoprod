@@ -8,7 +8,12 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-from agent_factory import AgentSettings, create_agent, prompt_error, rollback_on_failure
+from app.agendev.agent_factory import (
+    AgentSettings,
+    create_agent,
+    prompt_error,
+    rollback_on_failure,
+)
 
 
 class JsonLogFormatter(logging.Formatter):

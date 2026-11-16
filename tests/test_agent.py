@@ -3,8 +3,8 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from agent_factory import AgentSettings, create_agent, prompt_error
-from finance_tools import FINANCE_TOOLS
+from app.agendev.agent_factory import AgentSettings, create_agent, prompt_error
+from app.agendev.finance_tools import FINANCE_TOOLS
 from strands import Agent
 
 

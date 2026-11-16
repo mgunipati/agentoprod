@@ -65,7 +65,7 @@ configured by this option.
 
 ## Financial tools
 
-`finance_tools.py` gives the agent a loan EMI calculator, Yahoo Finance tools
+`app/agendev/finance_tools.py` gives the agent a loan EMI calculator, Yahoo Finance tools
 for current price, price history and company financials, and an Alpha Vantage
 quote tool. Each tool validates its arguments, returns a dict that includes the
 listed currency, and reports fetch failures without exception details. To add
@@ -85,8 +85,8 @@ call, which requires invoking the runtime with a user ID (`--user-id`).
 ## AgentCore Runtime
 
 `app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.
-`app/agendev/agent_factory.py` and `app/agendev/finance_tools.py` are symlinks
-to the root files, so edit those, and add any new dependency to both
+The shared agent and finance modules live under `app/agendev/` and are imported
+by both the local CLI and runtime. Add any new dependency to both
 `pyproject.toml` files. Each runtime session
 runs in its own microVM, so conversation history is kept in memory per
 session ID and lost when the session ends. `agentcore/` holds the AgentCore CLI

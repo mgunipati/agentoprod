@@ -98,7 +98,9 @@ class ObservabilityTests(unittest.TestCase):
         stdout, stderr = io.StringIO(), io.StringIO()
         with contextlib.ExitStack() as stack:
             stack.enter_context(patch.object(sys, "argv", ["cli.py", *args]))
-            stack.enter_context(patch("agent_factory.BedrockModel", return_value=model or FakeModel()))
+            stack.enter_context(
+                patch("app.agendev.agent_factory.BedrockModel", return_value=model or FakeModel())
+            )
             if inputs is not None:
                 stack.enter_context(patch("builtins.input", side_effect=inputs))
             if executor is not None:
