@@ -169,6 +169,31 @@ stable ID, not personal data. Raw events expire after 30 days. Without
 agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "My home loan is 10 lakh at 9%", "user_id": "user-42"}'
 ```
 
+## Finance tools as an MCP server
+
+The `financetools` runtime (`app/financetools/main.py`) serves the five finance
+tools over MCP (streamable HTTP, `POST /mcp` on port 8000), so other agents and
+clients can use them. The chat agent still calls them directly in Python.
+`app/financetools/finance_tools.py` is a symlink to
+`app/agendev/finance_tools.py`, so both runtimes ship the same code; the CodeZip
+bundle contains the real file.
+
+The `tools` Gateway (inbound `AWS_IAM`, protocol `None`) forwards to the
+runtime with its own IAM role. Callers sign requests with SigV4 and append `/mcp`
+to the Gateway URL. An MCP-protocol Gateway would merge tool catalogues across
+targets, but its MCP targets only support OAuth or no outbound auth, not IAM.
+
+Run the server locally and list its tools:
+
+```bash
+cd app/financetools && uv run python main.py      # serves http://localhost:8000/mcp
+uv run python -c "import asyncio; from mcp import Client
+async def main():
+    async with Client('http://localhost:8000/mcp') as c:
+        print([t.name for t in (await c.list_tools()).tools])
+asyncio.run(main())"
+```
+
 ## Production considerations
 
 This repository provides a CLI baseline, not a complete hosted enterprise

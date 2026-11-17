@@ -1,0 +1,16 @@
+[project]
+name = "financetools-runtime"
+version = "0.1.0"
+description = "AgentCore MCP Runtime serving the agentoprod finance tools"
+requires-python = ">=3.13"
+dependencies = [
+    "alpha-vantage>=3.0.0",
+    "aws-opentelemetry-distro ~= 0.21.0",
+    "bedrock-agentcore >= 1.26.0, < 2.0.0",
+    "boto3 >= 1.34.0",
+    # finance_tools.py decorates its functions with Strands' @tool.
+    "strands-agents >= 1.65.0, < 2.0.0",
+    # mcp 2.x: MCPServer (formerly FastMCP).
+    "mcp >= 2.3.0, < 3.0.0",
+    "yfinance>=1.8.0",
+]

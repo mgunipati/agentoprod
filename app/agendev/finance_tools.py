@@ -296,3 +296,13 @@ FINANCE_TOOLS = [
     get_company_financials,
     get_alpha_vantage_quote,
 ]
+
+
+def plain_tool_functions() -> list:
+    """The undecorated functions behind FINANCE_TOOLS, for the MCP server.
+
+    The MCP server (app/financetools) registers these so it reads the same
+    names, docstrings and type hints the Strands agent uses. `_tool_func` is
+    a Strands internal; this is the only place that relies on it.
+    """
+    return [finance_tool._tool_func for finance_tool in FINANCE_TOOLS]

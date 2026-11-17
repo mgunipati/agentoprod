@@ -10,6 +10,15 @@
       "codeLocation": "app/agendev",
       "runtimeVersion": "PYTHON_3_14",
       "protocol": "HTTP"
+    },
+    {
+      "name": "financetools",
+      "description": "Finance tools as an MCP server",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/financetools",
+      "runtimeVersion": "PYTHON_3_14",
+      "protocol": "MCP"
     }
   ],
   "memories": [
@@ -37,7 +46,25 @@
   "credentials": [],
   "evaluators": [],
   "onlineEvalConfigs": [],
-  "agentCoreGateways": [],
+  "agentCoreGateways": [
+    {
+      "name": "tools",
+      "protocolType": "None",
+      "description": "IAM front door for the finance MCP runtime",
+      "targets": [
+        {
+          "name": "finance",
+          "targetType": "httpRuntime",
+          "httpRuntime": {
+            "runtime": "financetools"
+          }
+        }
+      ],
+      "authorizerType": "AWS_IAM",
+      "enableSemanticSearch": false,
+      "exceptionLevel": "NONE"
+    }
+  ],
   "policyEngines": [],
   "configBundles": [],
   "harnesses": []
