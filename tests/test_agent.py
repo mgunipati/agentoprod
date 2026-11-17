@@ -113,6 +113,12 @@ class AgentSettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not DRAFT"):
             AgentSettings(guardrail_id="abc123", guardrail_version="DRAFT").validate()
 
+    def test_prompt_says_remembered_context_is_not_a_request(self) -> None:
+        from agents.agent_factory import SYSTEM_PROMPT
+
+        self.assertIn("Answer only what the user's latest message asks", SYSTEM_PROMPT)
+        self.assertIn("Never reuse numbers from <user_context>", SYSTEM_PROMPT)
+
     def test_reply_text_removes_thinking(self) -> None:
         reply = "<thinking>The user wants\na square.</thinking>\n\n12 squared is 144. <thinking>done</thinking>"
         self.assertEqual(reply_text(reply), "12 squared is 144.")

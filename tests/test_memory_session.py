@@ -63,6 +63,11 @@ class MemorySessionManagerTests(unittest.TestCase):
         )
         self.assertIs(manager, manager_module.AgentCoreMemorySessionManager.return_value)
 
+    def test_only_memories_about_the_question_are_retrieved(self) -> None:
+        # Unrelated records score ~0.35 and get acted on as if requested; related ones ~0.65+.
+        for options in RETRIEVAL.values():
+            self.assertGreaterEqual(options["relevance_score"], 0.5)
+
     def test_valid_memory_id(self) -> None:
         self.assertTrue(valid_memory_id("user-42_a"))
         self.assertTrue(valid_memory_id("6f1c2a3b-0000-4000-8000-000000000000"))

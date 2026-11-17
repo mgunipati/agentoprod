@@ -23,9 +23,12 @@ from strands.types.content import Message
 MEMORY_ID_ENV = "MEMORY_CHAT_ID"
 
 # Must match the strategies' namespaceTemplates in agentcore/agentcore.json.
-# Facts are recalled more generously than preferences.
+# Every retrieved record is added to the user's message, and the model tends to
+# act on it (an EMI question also fetched a remembered AAPL quote). Unrelated
+# records score about 0.33-0.37 and related ones 0.64-0.75, so 0.5 keeps only
+# memories about the current question.
 RETRIEVAL = {
-    "/users/{actorId}/facts": {"top_k": 5, "relevance_score": 0.3},
+    "/users/{actorId}/facts": {"top_k": 5, "relevance_score": 0.5},
     "/users/{actorId}/preferences": {"top_k": 5, "relevance_score": 0.5},
 }
 

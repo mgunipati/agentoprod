@@ -202,7 +202,10 @@ AgentCore Memory session manager to the chat agent:
 - **Long-term:** AgentCore extracts facts (`/users/{actorId}/facts`) and
   preferences (`/users/{actorId}/preferences`) in the background. Matching
   records are added to each user message inside `<user_context>` tags, so the
-  agent remembers a user across sessions.
+  agent remembers a user across sessions. Only records scoring 0.5 or more for
+  the question are added (unrelated ones score about 0.35), and the system
+  prompt says the context is background: it never triggers a tool call, and
+  remembered numbers are fetched again rather than reused.
 
 The user is the `sub` of the caller's Cognito access token (see "Sign in with
 Cognito"); only unauthenticated local runs fall back to the payload's
