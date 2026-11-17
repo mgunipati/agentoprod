@@ -1,0 +1,885 @@
+<title>agentoprod Architecture Stages</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* React Flow 11.11.4 base.css (MIT), inlined: the CSP blocks CDN stylesheets */
+/* this will be exported as base.css and can be used for a basic styling */
+/* these are the necessary styles for React Flow, they get used by base.css and style.css */
+.react-flow {
+  direction: ltr;
+}
+.react-flow__container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+.react-flow__pane {
+  z-index: 1;
+  cursor: -webkit-grab;
+  cursor: grab;
+}
+.react-flow__pane.selection {
+    cursor: pointer;
+  }
+.react-flow__pane.dragging {
+    cursor: -webkit-grabbing;
+    cursor: grabbing;
+  }
+.react-flow__viewport {
+  transform-origin: 0 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.react-flow__renderer {
+  z-index: 4;
+}
+.react-flow__selection {
+  z-index: 6;
+}
+.react-flow__nodesselection-rect:focus,
+.react-flow__nodesselection-rect:focus-visible {
+  outline: none;
+}
+.react-flow .react-flow__edges {
+  pointer-events: none;
+  overflow: visible;
+}
+.react-flow__edge-path,
+.react-flow__connection-path {
+  stroke: #b1b1b7;
+  stroke-width: 1;
+  fill: none;
+}
+.react-flow__edge {
+  pointer-events: visibleStroke;
+  cursor: pointer;
+}
+.react-flow__edge.animated path {
+    stroke-dasharray: 5;
+    -webkit-animation: dashdraw 0.5s linear infinite;
+            animation: dashdraw 0.5s linear infinite;
+  }
+.react-flow__edge.animated path.react-flow__edge-interaction {
+    stroke-dasharray: none;
+    -webkit-animation: none;
+            animation: none;
+  }
+.react-flow__edge.inactive {
+    pointer-events: none;
+  }
+.react-flow__edge.selected,
+  .react-flow__edge:focus,
+  .react-flow__edge:focus-visible {
+    outline: none;
+  }
+.react-flow__edge.selected .react-flow__edge-path,
+  .react-flow__edge:focus .react-flow__edge-path,
+  .react-flow__edge:focus-visible .react-flow__edge-path {
+    stroke: #555;
+  }
+.react-flow__edge-textwrapper {
+    pointer-events: all;
+  }
+.react-flow__edge-textbg {
+    fill: white;
+  }
+.react-flow__edge .react-flow__edge-text {
+    pointer-events: none;
+    -webkit-user-select: none;
+       -moz-user-select: none;
+            user-select: none;
+  }
+.react-flow__connection {
+  pointer-events: none;
+}
+.react-flow__connection .animated {
+    stroke-dasharray: 5;
+    -webkit-animation: dashdraw 0.5s linear infinite;
+            animation: dashdraw 0.5s linear infinite;
+  }
+.react-flow__connectionline {
+  z-index: 1001;
+}
+.react-flow__nodes {
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+.react-flow__node {
+  position: absolute;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  pointer-events: all;
+  transform-origin: 0 0;
+  box-sizing: border-box;
+  cursor: -webkit-grab;
+  cursor: grab;
+}
+.react-flow__node.dragging {
+    cursor: -webkit-grabbing;
+    cursor: grabbing;
+  }
+.react-flow__nodesselection {
+  z-index: 3;
+  transform-origin: left top;
+  pointer-events: none;
+}
+.react-flow__nodesselection-rect {
+    position: absolute;
+    pointer-events: all;
+    cursor: -webkit-grab;
+    cursor: grab;
+  }
+.react-flow__handle {
+  position: absolute;
+  pointer-events: none;
+  min-width: 5px;
+  min-height: 5px;
+  background-color: #333;
+}
+.react-flow__handle.connectionindicator {
+    pointer-events: all;
+    cursor: crosshair;
+  }
+.react-flow__handle-bottom {
+    top: auto;
+    left: 50%;
+    bottom: -4px;
+    transform: translate(-50%, 0);
+  }
+.react-flow__handle-top {
+    left: 50%;
+    top: -4px;
+    transform: translate(-50%, 0);
+  }
+.react-flow__handle-left {
+    top: 50%;
+    left: -4px;
+    transform: translate(0, -50%);
+  }
+.react-flow__handle-right {
+    right: -4px;
+    top: 50%;
+    transform: translate(0, -50%);
+  }
+.react-flow__edgeupdater {
+  cursor: move;
+  pointer-events: all;
+}
+.react-flow__panel {
+  position: absolute;
+  z-index: 5;
+  margin: 15px;
+}
+.react-flow__panel.top {
+    top: 0;
+  }
+.react-flow__panel.bottom {
+    bottom: 0;
+  }
+.react-flow__panel.left {
+    left: 0;
+  }
+.react-flow__panel.right {
+    right: 0;
+  }
+.react-flow__panel.center {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+.react-flow__attribution {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 2px 3px;
+  margin: 0;
+}
+.react-flow__attribution a {
+    text-decoration: none;
+    color: #999;
+  }
+@-webkit-keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
+.react-flow__edgelabel-renderer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+.react-flow__node-default,
+.react-flow__node-input,
+.react-flow__node-output,
+.react-flow__node-group {
+  border-width: 1px;
+  border-style: solid;
+  border-color: #bbb;
+}
+.react-flow__node-default.selected,
+  .react-flow__node-default:focus,
+  .react-flow__node-default:focus-visible,
+  .react-flow__node-input.selected,
+  .react-flow__node-input:focus,
+  .react-flow__node-input:focus-visible,
+  .react-flow__node-output.selected,
+  .react-flow__node-output:focus,
+  .react-flow__node-output:focus-visible,
+  .react-flow__node-group.selected,
+  .react-flow__node-group:focus,
+  .react-flow__node-group:focus-visible {
+    outline: none;
+    border: 1px solid #555;
+  }
+.react-flow__nodesselection-rect,
+.react-flow__selection {
+  background: rgba(150, 150, 180, 0.1);
+  border: 1px dotted rgba(155, 155, 155, 0.8);
+}
+.react-flow__controls {
+  box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.08);
+}
+.react-flow__controls-button {
+    border: none;
+    background: #fefefe;
+    border-bottom: 1px solid #eee;
+    box-sizing: content-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    -webkit-user-select: none;
+       -moz-user-select: none;
+            user-select: none;
+    padding: 5px;
+  }
+.react-flow__controls-button:hover {
+      background: #f4f4f4;
+    }
+.react-flow__controls-button svg {
+      width: 100%;
+      max-width: 12px;
+      max-height: 12px;
+    }
+.react-flow__controls-button:disabled {
+      pointer-events: none;
+    }
+.react-flow__controls-button:disabled svg {
+        fill-opacity: 0.4;
+      }
+.react-flow__minimap {
+  background-color: #fff;
+}
+.react-flow__minimap svg {
+  display: block;
+}
+.react-flow__resize-control {
+  position: absolute;
+}
+.react-flow__resize-control.left,
+.react-flow__resize-control.right {
+  cursor: ew-resize;
+}
+.react-flow__resize-control.top,
+.react-flow__resize-control.bottom {
+  cursor: ns-resize;
+}
+.react-flow__resize-control.top.left,
+.react-flow__resize-control.bottom.right {
+  cursor: nwse-resize;
+}
+.react-flow__resize-control.bottom.left,
+.react-flow__resize-control.top.right {
+  cursor: nesw-resize;
+}
+/* handle styles */
+.react-flow__resize-control.handle {
+  width: 4px;
+  height: 4px;
+  border: 1px solid #fff;
+  border-radius: 1px;
+  background-color: #3367d9;
+  transform: translate(-50%, -50%);
+}
+.react-flow__resize-control.handle.left {
+  left: 0;
+  top: 50%;
+}
+.react-flow__resize-control.handle.right {
+  left: 100%;
+  top: 50%;
+}
+.react-flow__resize-control.handle.top {
+  left: 50%;
+  top: 0;
+}
+.react-flow__resize-control.handle.bottom {
+  left: 50%;
+  top: 100%;
+}
+.react-flow__resize-control.handle.top.left {
+  left: 0;
+}
+.react-flow__resize-control.handle.bottom.left {
+  left: 0;
+}
+.react-flow__resize-control.handle.top.right {
+  left: 100%;
+}
+.react-flow__resize-control.handle.bottom.right {
+  left: 100%;
+}
+/* line styles */
+.react-flow__resize-control.line {
+  border-color: #3367d9;
+  border-width: 0;
+  border-style: solid;
+}
+.react-flow__resize-control.line.left,
+.react-flow__resize-control.line.right {
+  width: 1px;
+  transform: translate(-50%, 0);
+  top: 0;
+  height: 100%;
+}
+.react-flow__resize-control.line.left {
+  left: 0;
+  border-left-width: 1px;
+}
+.react-flow__resize-control.line.right {
+  left: 100%;
+  border-right-width: 1px;
+}
+.react-flow__resize-control.line.top,
+.react-flow__resize-control.line.bottom {
+  height: 1px;
+  transform: translate(0, -50%);
+  left: 0;
+  width: 100%;
+}
+.react-flow__resize-control.line.top {
+  top: 0;
+  border-top-width: 1px;
+}
+.react-flow__resize-control.line.bottom {
+  border-bottom-width: 1px;
+  top: 100%;
+}
+
+
+/* Layout: a stage rail on the left (chips on phones), the live diagram on the right,
+   and a three-column notes strip under it. Diagram first, prose second. */
+:root {
+  --bg: #f3f5f6;
+  --surface: #ffffff;
+  --fg: #16212b;
+  --muted: #5b6874;
+  --line: #d6dde3;
+  --accent: #0f7c86;
+  --accent-soft: #dff1f2;
+  --grid: #c9d3da;
+  --k-person: #6b5b95;
+  --k-code: #2f6fb5;
+  --k-agent: #0f7c86;
+  --k-aws: #c26a12;
+  --k-data: #3d8a4a;
+  --k-external: #7a7f87;
+  --k-ci: #8a5a2b;
+  --k-security: #b4383f;
+  --new: #0f7c86;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1519; --surface: #172026; --fg: #e4eaee; --muted: #9aa8b3; --line: #2a363f;
+    --accent: #3fb6bf; --accent-soft: #143238; --grid: #24313a;
+    --k-person: #a796d6; --k-code: #6aa6e8; --k-agent: #3fb6bf; --k-aws: #f0a04b;
+    --k-data: #6cc07a; --k-external: #a7adb5; --k-ci: #d69a5e; --k-security: #ec6f76; --new: #3fb6bf;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1519; --surface: #172026; --fg: #e4eaee; --muted: #9aa8b3; --line: #2a363f;
+  --accent: #3fb6bf; --accent-soft: #143238; --grid: #24313a;
+  --k-person: #a796d6; --k-code: #6aa6e8; --k-agent: #3fb6bf; --k-aws: #f0a04b;
+  --k-data: #6cc07a; --k-external: #a7adb5; --k-ci: #d69a5e; --k-security: #ec6f76; --new: #3fb6bf;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+}
+.page {
+  max-width: 1320px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+  display: grid; gap: 20px;
+}
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 70ch; }
+
+.workspace { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+
+/* Stage rail */
+.rail { display: grid; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+.rail button {
+  all: unset; cursor: pointer; display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid transparent;
+}
+.rail button:hover { background: var(--surface); border-color: var(--line); }
+.rail button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rail button[aria-current="true"] { background: var(--surface); border-color: var(--accent); }
+.rail .num { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.rail button[aria-current="true"] .num { color: var(--accent); font-weight: 500; }
+.rail .t { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.rail .s { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+@media (max-width: 860px) {
+  .rail { position: static; grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; padding-bottom: 4px; }
+  .rail button { grid-template-columns: auto auto; align-items: baseline; padding: 8px 12px; border-color: var(--line); background: var(--surface); }
+  .rail .s { display: none; }
+}
+
+/* Diagram */
+.stagehead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.stagehead h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 0; text-wrap: balance; }
+.commit { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.canvas {
+  height: min(62vh, 560px); min-height: 420px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); overflow: hidden;
+}
+.canvas .react-flow__attribution { display: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.legend .newkey { border: 2px solid var(--new); background: var(--accent-soft); width: 12px; height: 12px; }
+
+/* Nodes */
+.node {
+  width: 196px; background: var(--surface); color: var(--fg); border: 1px solid var(--line);
+  border-left: 4px solid var(--kind); border-radius: 8px; padding: 8px 10px 9px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06); font-family: var(--font-body);
+}
+.node.new { border-color: var(--new); border-left-color: var(--kind); box-shadow: 0 0 0 3px var(--accent-soft); }
+.node .kind { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--kind); display: flex; justify-content: space-between; gap: 6px; }
+.node .kind b { font-weight: 500; color: var(--new); }
+.node .title { font-weight: 600; font-size: 13.5px; line-height: 1.25; margin-top: 2px; overflow-wrap: anywhere; }
+.node .sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); line-height: 1.35; margin-top: 3px; overflow-wrap: anywhere; }
+.node .react-flow__handle { width: 6px; height: 6px; min-width: 0; min-height: 0; background: var(--line); border: 0; opacity: 0; }
+.react-flow__edge-path { stroke: var(--muted); stroke-width: 1.4; }
+.react-flow__edge.animated .react-flow__edge-path { stroke: var(--accent); }
+.react-flow__edge-textbg { fill: var(--surface); }
+.react-flow__edge-text { fill: var(--muted); font-family: var(--font-mono); font-size: 10.5px; }
+.react-flow__controls { box-shadow: none; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.react-flow__controls-button { background: var(--surface); border-bottom: 1px solid var(--line); color: var(--fg); }
+.react-flow__controls-button svg { fill: var(--fg); }
+.react-flow__controls-button:hover { background: var(--accent-soft); }
+.react-flow__minimap { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+
+/* Notes */
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes section { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.notes h3 { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.notes li { font-size: 14px; }
+.notes code { font-family: var(--font-mono); font-size: 12.5px; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.summary { margin: 0; max-width: 75ch; }
+.main { display: grid; gap: 12px; min-width: 0; }
+.fallback { padding: 24px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .react-flow__edge.animated path { animation: none; } }
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">agentoprod · Strands + Bedrock + AgentCore · ap-south-1</div>
+    <h1>How the agent grew, stage by stage</h1>
+    <p class="lede">Each stage shows what was added on top of the last. Teal-outlined boxes are new in that stage. Drag to pan, scroll or pinch to zoom, and use the last view for the whole system as deployed today.</p>
+  </header>
+  <div id="app"><div class="fallback">Loading the diagrams…</div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reactflow@11.11.4/dist/umd/index.js"></script>
+<script>
+(function () {
+  "use strict";
+  const h = React.createElement;
+  const RF = window.ReactFlow;
+  const Flow = RF.default;
+  const { Background, Controls, MiniMap, Handle, Position, MarkerType } = RF;
+
+  const KINDS = {
+    person:   { label: "Caller",        color: "var(--k-person)" },
+    code:     { label: "Code",          color: "var(--k-code)" },
+    agent:    { label: "Agent",         color: "var(--k-agent)" },
+    aws:      { label: "AWS service",   color: "var(--k-aws)" },
+    data:     { label: "Data / memory", color: "var(--k-data)" },
+    external: { label: "External API",  color: "var(--k-external)" },
+    ci:       { label: "CI/CD",         color: "var(--k-ci)" },
+    security: { label: "IAM / secret",  color: "var(--k-security)" },
+  };
+
+  // n(id, kind, title, sub, x, y, isNew)
+  const n = (id, kind, title, sub, x, y, isNew) => ({ id, kind, title, sub, x, y, isNew: !!isNew });
+  // e(from, to, label, opts) — opts: { from: side, to: side, flow: animated request path, dashed }
+  const e = (source, target, label, opts) => Object.assign({ source, target, label }, opts || {});
+
+  const STAGES = [
+    {
+      key: "stage-1", short: "Local CLI agent", sub: "Strands agent on Bedrock", commit: "76d5710 → c463c00",
+      title: "Stage 1 · A local agent on Bedrock",
+      summary: "A command-line assistant: cli.py builds one Strands agent that calls Amazon Nova Lite through the Bedrock Converse API, keeps the last 40 messages, and logs metadata-only telemetry with --observe.",
+      nodes: [
+        n("you", "person", "You", "terminal", 0, 120, true),
+        n("cli", "code", "cli.py", "chat loop · --prompt · Ctrl+C cancel", 260, 120, true),
+        n("factory", "code", "agent_factory.create_agent()", "AgentSettings.from_env()", 520, 120, true),
+        n("agent", "agent", "Strands Agent \"agentoprod\"", "SlidingWindow 40 · rollback_on_failure", 780, 120, true),
+        n("bedrock", "aws", "Amazon Bedrock", "apac.amazon.nova-lite-v1:0 · max_tokens 1024", 1040, 120, true),
+        n("hooks", "code", "ConsoleObservationHooks", "model/tool events, JSON logs", 780, 290, true),
+      ],
+      edges: [
+        e("you", "cli", "prompt", { flow: true }), e("cli", "factory", "build once"), e("factory", "agent", ""),
+        e("agent", "bedrock", "Converse", { flow: true }), e("agent", "hooks", "--observe", { from: "b", to: "t", dashed: true }),
+      ],
+      added: ["One agent built from environment settings, validated up front", "Failed or cancelled turns rolled back, so history never has two user messages in a row", "Metadata-only JSON logs: no prompts or answers in the logs"],
+      files: ["cli.py", "app/agendev/agent_factory.py", "app/agendev/observability.py"],
+      verified: ["Tests for settings, rollback, Ctrl+C cancel and log records"],
+    },
+    {
+      key: "stage-2", short: "Tools & tutors", sub: "Finance tools, agents as tools", commit: "ae1f9ce → fd5f415",
+      title: "Stage 2 · Finance tools and tutor agents",
+      summary: "The agent gets five finance tools and three specialist tutor agents wrapped as tools (the agents-as-tools pattern). The system prompt routes money questions to the finance tools and everything else to a tutor.",
+      nodes: [
+        n("agent", "agent", "Strands Agent \"agentoprod\"", "system prompt routes requests", 0, 200),
+        n("ft", "code", "finance_tools.py", "validate · dict + currency · safe errors", 300, 40, true),
+        n("emi", "code", "loan_emi", "pure maths", 600, -60, true),
+        n("yahoo", "external", "Yahoo Finance", "price · history · financials", 600, 60, true),
+        n("av", "external", "Alpha Vantage", "quote · key from .env locally", 600, 180, true),
+        n("tutors", "code", "math_tools.create_math_tools()", "Agent.as_tool(), fresh history per call", 300, 330, true),
+        n("math", "agent", "math_tutor", "", 600, 290, true),
+        n("writing", "agent", "writing_coach", "", 600, 380, true),
+        n("science", "agent", "science_helper", "", 600, 470, true),
+        n("bedrock", "aws", "Amazon Bedrock", "Nova Lite", 900, 380),
+      ],
+      edges: [
+        e("agent", "ft", "tool calls", { flow: true }), e("ft", "emi", ""), e("ft", "yahoo", "HTTPS"), e("ft", "av", "HTTPS"),
+        e("agent", "tutors", "delegate"), e("tutors", "math", ""), e("tutors", "writing", ""), e("tutors", "science", ""),
+        e("math", "bedrock", ""), e("writing", "bedrock", ""), e("science", "bedrock", ""),
+      ],
+      added: ["Five tools: loan_emi, get_stock_price, get_stock_history, get_company_financials, get_alpha_vantage_quote", "Three tutors created per agent, so sessions never share tutor history", "Today's date in the prompt; NaN closes dropped from price history"],
+      files: ["app/agendev/finance_tools.py", "app/agendev/math_tools.py"],
+      verified: ["EMI on ₹10 lakh at 9% for 5 years: ₹20,758.36", "Delegation to the right tutor in 7 of 8 live runs"],
+    },
+    {
+      key: "stage-3", short: "AgentCore Runtime", sub: "Hosted, one microVM per session", commit: "434cad7 → 64a3b42",
+      title: "Stage 3 · Hosted on AgentCore Runtime",
+      summary: "main.py wraps the same agent in the AgentCore HTTP contract. Each session ID gets its own microVM, so the conversation lives in that process; a second message mid-turn gets a busy reply instead of a 500.",
+      nodes: [
+        n("caller", "person", "agentcore invoke", "--runtime agendev --session-id …", 0, 140, true),
+        n("runtime", "aws", "AgentCore Runtime \"agendev\"", "CodeZip · PYTHON_3_14 · IAM (SigV4) inbound", 280, 140, true),
+        n("main", "code", "main.py", "BedrockAgentCoreApp · POST /invocations · GET /ping", 560, 140, true),
+        n("cache", "code", "agent_for_session()", "lru_cache per session", 840, 40, true),
+        n("agent", "agent", "Strands Agent", "tools + tutors from stage 2", 840, 240),
+        n("bedrock", "aws", "Amazon Bedrock", "Nova Lite", 1120, 240),
+        n("cw", "data", "CloudWatch Logs + traces", "request_id · duration_ms · tool_name", 560, 330, true),
+      ],
+      edges: [
+        e("caller", "runtime", "SigV4", { flow: true }), e("runtime", "main", "microVM per session", { flow: true }),
+        e("main", "cache", ""), e("cache", "agent", "", { from: "b", to: "t" }), e("agent", "bedrock", "", { flow: true }),
+        e("main", "cw", "logs, spans", { from: "b", to: "t", dashed: true }),
+      ],
+      added: ["ConcurrencyException mapped to “Still answering your previous message”", "Nova <thinking> text stripped from replies", "Hook fields written into log text, since AgentCore prints only the message"],
+      files: ["app/agendev/main.py", "app/agendev/pyproject.toml", "agentcore/agentcore.json"],
+      verified: ["Busy reply confirmed live with two overlapping requests", "Session memory confirmed with repeated --session-id"],
+    },
+    {
+      key: "stage-4", short: "CI/CD", sub: "GitHub Actions + OIDC + CDK", commit: "4cfbb73 → 13d2d3a",
+      title: "Stage 4 · Test and deploy on every push",
+      summary: "Pushing to main runs the tests on Python 3.13 and 3.14, then deploys with short-lived AWS credentials from GitHub's OIDC token. The AgentCore CLI turns agentcore.json into a CDK app and CloudFormation applies it.",
+      nodes: [
+        n("push", "person", "git push main", "github.com/mgunipati/agentoprod", 0, 160, true),
+        n("test", "ci", "test job", "uv sync --locked · pytest · 3.13 + 3.14", 260, 60, true),
+        n("deploy", "ci", "deploy job", "needs: test · concurrency group", 260, 260, true),
+        n("oidc", "security", "GitHub OIDC → STS", "sub pinned to repo + main", 540, 260, true),
+        n("role", "security", "agentoprod-github-deploy", "agentcore-deploy + agentcore-credentials", 820, 260, true),
+        n("cli", "code", "agentcore deploy", "@aws/agentcore 1.0.1", 820, 60, true),
+        n("cdk", "code", "CDK app", "agentcore/cdk/lib/cdk-stack.ts", 1100, 60, true),
+        n("cfn", "aws", "CloudFormation", "AgentCore-agendev-default", 1100, 260, true),
+        n("res", "aws", "Runtimes · Memory · Gateway", "everything in agentcore.json", 1380, 160, true),
+      ],
+      edges: [
+        e("push", "test", "", { flow: true }), e("push", "deploy", "main only"), e("test", "deploy", "must pass", { from: "b", to: "t" }),
+        e("deploy", "oidc", "id-token: write", { flow: true }), e("oidc", "role", "AssumeRoleWithWebIdentity", { flow: true }),
+        e("role", "cli", "temporary creds", { from: "t", to: "b" }), e("cli", "cdk", "synth"), e("cdk", "cfn", "cdk-hnb659fds roles", { from: "b", to: "t" }),
+        e("cfn", "res", "create / update", { flow: true }),
+      ],
+      added: ["No stored AWS keys: the trust policy accepts only this repo's main branch (immutable subject)", "One deploy at a time; a newer push waits", "Actions on Node 24 versions"],
+      files: [".github/workflows/ci.yml", "agentcore/cdk/lib/cdk-stack.ts", "agentcore/aws-targets.json"],
+      verified: ["Every push since 4cfbb73 tested and deployed (latest: test 17s + 14s, deploy 2m50s)"],
+    },
+    {
+      key: "stage-5", short: "Graph & Swarm", sub: "Three orchestration modes", commit: "42041d9 → 264d88b",
+      title: "Stage 5 · Three orchestration patterns behind one endpoint",
+      summary: "The payload's \"mode\" picks the pattern. chat is the session agent (agents as tools). report is a Graph whose order is fixed in code. swarm lets agents hand work to each other. report and swarm build new agents per request with at least 2048 output tokens.",
+      nodes: [
+        n("payload", "person", "{\"prompt\", \"mode\"}", "chat (default) · report · swarm", 0, 220, true),
+        n("main", "code", "main.py", "ONE_SHOT_MODES routing", 260, 220, true),
+        n("chat", "agent", "chat", "session agent + tools + tutors", 540, 40),
+        n("fetch", "agent", "Graph: fetch", "only node with stock tools", 540, 200, true),
+        n("analyse", "agent", "Graph: analyse", "no tools, data from fetch", 800, 200, true),
+        n("review", "agent", "Graph: review", "checks numbers, adds disclaimer", 1060, 200, true),
+        n("researcher", "agent", "Swarm: researcher", "stock tools + loan_emi", 540, 380, true),
+        n("analyst", "agent", "Swarm: analyst", "can send work back", 800, 380, true),
+        n("writer", "agent", "Swarm: writer", "final answer", 1060, 380, true),
+      ],
+      edges: [
+        e("payload", "main", "", { flow: true }), e("main", "chat", "chat"), e("main", "fetch", "report"), e("main", "researcher", "swarm"),
+        e("fetch", "analyse", "edge", { flow: true }), e("analyse", "review", "edge", { flow: true }),
+        e("researcher", "analyst", "handoff", { flow: true }), e("analyst", "writer", "handoff", { flow: true }),
+        e("analyst", "researcher", "need more data", { from: "b", to: "b", dashed: true }),
+      ],
+      added: ["Graph: fetch → analyse → review, max 5 node executions", "Swarm limits: 6 handoffs, 180 s, fails on two-agent ping-pong", "Swarm replies include the path the agents took"],
+      files: ["app/agendev/report_graph.py", "app/agendev/research_swarm.py", "app/agendev/main.py"],
+      verified: ["Report mode 3 of 3 through the runtime entrypoint (9–15 s)", "Swarm 5 of 5 with real figures, one run took the rework loop"],
+    },
+    {
+      key: "stage-6", short: "AgentCore Memory", sub: "History and facts that persist", commit: "5bcfd5b",
+      title: "Stage 6 · AgentCore Memory",
+      summary: "The chat agent gets a Strands session manager backed by AgentCore Memory. Short-term events reload a session in a new microVM; long-term strategies extract facts and preferences per user and add them to each message.",
+      nodes: [
+        n("payload", "person", "payload user_id", "default \"anonymous\"", 0, 160, true),
+        n("main", "code", "agent_for_session(session, user)", "cache key now includes user", 260, 160, true),
+        n("agent", "agent", "chat agent", "drop_unfinished_turns on reload", 540, 160),
+        n("sm", "code", "AgentCoreMemorySessionManager", "memory_session.py · MEMORY_CHAT_ID", 820, 160, true),
+        n("stm", "data", "Memory \"chat\": events", "per actor + session · expire after 30 days", 1100, 40, true),
+        n("facts", "data", "/users/{actorId}/facts", "SEMANTIC strategy", 1100, 190, true),
+        n("prefs", "data", "/users/{actorId}/preferences", "USER_PREFERENCE strategy", 1100, 320, true),
+      ],
+      edges: [
+        e("payload", "main", "", { flow: true }), e("main", "agent", ""), e("agent", "sm", "every message", { flow: true }),
+        e("sm", "stm", "save / reload"), e("stm", "facts", "extract", { from: "b", to: "t", dashed: true }), e("facts", "prefs", "", { from: "b", to: "t", dashed: true }),
+        e("prefs", "agent", "<user_context>", { from: "l", to: "b", dashed: true }),
+      ],
+      added: ["Runtime gets MEMORY_CHAT_ID and IAM automatically (same-project wiring)", "Unfinished turns removed on reload, because Memory saves each message as it is added", "Without MEMORY_CHAT_ID (local CLI) history stays in process"],
+      files: ["app/agendev/memory_session.py", "app/agendev/agent_factory.py", "agentcore/agentcore.json (memories)"],
+      verified: ["Memory agendev_default_chat ACTIVE; runtime has MEMORY_CHAT_ID", "9 tests with a fake memory, including a broken history being cleaned"],
+    },
+    {
+      key: "stage-7", short: "MCP server + Gateway", sub: "Tools for other agents", commit: "4de6653 → a3efe42",
+      title: "Stage 7 · Finance tools as an MCP server behind a Gateway",
+      summary: "The same finance_tools.py (a symlink, so it cannot drift) is served over MCP by a second runtime. An IAM Gateway forwards to it by target name. The chat agent still calls the tools directly in Python.",
+      nodes: [
+        n("client", "person", "MCP client", "SigV4-signed JSON-RPC", 0, 140, true),
+        n("gw", "aws", "Gateway \"tools\"", "inbound AWS_IAM · no protocol type", 270, 140, true),
+        n("target", "aws", "target \"finance\"", "POST <gateway>/finance/invocations", 540, 140, true),
+        n("gwrole", "security", "Gateway IAM role", "httpRuntime IAM fallback", 540, 300, true),
+        n("mcprt", "aws", "Runtime \"financetools\"", "protocol MCP · port 8000 · /mcp", 810, 140, true),
+        n("server", "code", "MCPServer (mcp 2.x)", "app/financetools/main.py", 1080, 140, true),
+        n("shared", "code", "finance_tools.py", "symlink to the agent's copy", 1080, 300, true),
+        n("agent", "agent", "chat agent", "still imports the tools directly", 1080, -20),
+      ],
+      edges: [
+        e("client", "gw", "Accept: json, event-stream", { flow: true }), e("gw", "target", "", { flow: true }),
+        e("target", "gwrole", "", { from: "b", to: "t" }), e("gwrole", "mcprt", "SigV4", { from: "r", to: "b", flow: true }),
+        e("target", "mcprt", "forward", { flow: true }), e("mcprt", "server", "/mcp"), e("server", "shared", "plain_tool_functions()", { from: "b", to: "t" }),
+        e("agent", "shared", "import", { from: "r", to: "r", dashed: true }),
+      ],
+      added: ["MCP Gateway targets support only OAuth or no auth, so a pass-through Gateway keeps IAM end to end", "For an MCP runtime, --payload is the whole JSON-RPC message", "FastMCP is MCPServer in mcp 2.x; host and port move to run()"],
+      files: ["app/financetools/main.py", "app/financetools/finance_tools.py → ../agendev/", "agentcore/agentcore.json (gateways)"],
+      verified: ["Unsigned call: 401. Signed tools/list: 5 tools", "get_stock_price RELIANCE.NS: INR 1,344.8 through the Gateway"],
+    },
+    {
+      key: "stage-8", short: "Identity & hardening", sub: "Secrets, least privilege, retention", commit: "f425b58 → 769e546",
+      title: "Stage 8 · AgentCore Identity and least privilege",
+      summary: "The Alpha Vantage key lives only in Secrets Manager. The runtime fetches it per call with a workload token, which exists only when the caller passes --user-id. The CDK stack adds what the generated stack misses.",
+      nodes: [
+        n("caller", "person", "agentcore invoke --user-id", "same value as payload user_id", 0, 120, true),
+        n("runtime", "aws", "Runtime \"agendev\"", "CREDENTIAL_ALPHA_VANTAGE_NAME", 290, 120),
+        n("wat", "security", "Workload access token", "issued for that user ID", 290, 290, true),
+        n("identity", "security", "AgentCore Identity", "provider alpha-vantage · EXTERNAL", 580, 200, true),
+        n("secret", "security", "Secrets Manager", "agentoprod/alpha-vantage", 870, 200, true),
+        n("av", "external", "Alpha Vantage API", "quote", 580, 20),
+        n("stack", "code", "cdk-stack.ts additions", "secret read: agendev only", 870, 20, true),
+        n("deny", "security", "financetools role", "Deny 16 actions: Memory, models, API keys", 1150, 20, true),
+        n("logs", "data", "Runtime log groups", "retention 30 days", 1150, 200, true),
+      ],
+      edges: [
+        e("caller", "runtime", "", { flow: true }), e("runtime", "wat", "", { from: "b", to: "t" }),
+        e("wat", "identity", "GetResourceApiKey", { flow: true }), e("identity", "secret", "read", { flow: true }),
+        e("runtime", "av", "key, then HTTPS", { from: "t", to: "l", dashed: true }),
+        e("stack", "secret", "grantRead", { from: "b", to: "t", dashed: true }), e("stack", "deny", ""), e("stack", "logs", "", { from: "r", to: "l" }),
+      ],
+      added: ["The construct only allows Identity-managed secrets, so the stack grants the external secret explicitly", "CI role needs credential-provider permissions, since the CLI creates the provider outside CloudFormation", "Unified user ID deferred to JWT inbound auth"],
+      files: ["agentcore/cdk/lib/cdk-stack.ts", "agentcore/agentcore.json (credentials)", "IAM: agentcore-credentials policy"],
+      verified: ["Live AAPL quote “Source: Alpha Vantage” after the grant (was AccessDeniedException)", "financetools role: Deny present, no secret read; both log groups 30 days"],
+    },
+  ];
+
+  // The whole system today, one view.
+  STAGES.push({
+    key: "full", short: "Full picture", sub: "Everything deployed now", commit: "main @ 13d2d3a",
+    title: "Everything deployed today",
+    summary: "One AgentCore project, deployed from GitHub: the agendev runtime (chat, report Graph, research Swarm) with Memory and Identity, and the financetools MCP runtime behind an IAM Gateway.",
+    nodes: [
+      n("you", "person", "Callers", "CLI · agentcore invoke · MCP clients", 0, 260),
+      n("gh", "ci", "GitHub Actions", "test 3.13 + 3.14 → deploy via OIDC", 0, 520),
+      n("cfn", "aws", "CloudFormation", "AgentCore-agendev-default", 280, 520),
+      n("rt", "aws", "Runtime \"agendev\"", "main.py · modes chat / report / swarm", 280, 140),
+      n("agent", "agent", "Agents", "chat + tutors · Graph · Swarm", 560, 140),
+      n("bedrock", "aws", "Amazon Bedrock", "Nova Lite", 840, 40),
+      n("mem", "data", "AgentCore Memory", "events · facts · preferences", 840, 160),
+      n("idn", "security", "Identity + Secrets Manager", "Alpha Vantage key", 840, 280),
+      n("ext", "external", "Yahoo Finance · Alpha Vantage", "market data", 1120, 160),
+      n("gw", "aws", "Gateway \"tools\"", "AWS_IAM · /finance/invocations", 280, 380),
+      n("mcp", "aws", "Runtime \"financetools\"", "MCPServer · same finance_tools.py", 560, 380),
+      n("cw", "data", "CloudWatch", "logs 30 days · traces", 560, 520),
+    ],
+    edges: [
+      e("you", "rt", "SigV4", { flow: true }), e("you", "gw", "SigV4 MCP", { flow: true }), e("rt", "agent", "", { flow: true }),
+      e("agent", "bedrock", ""), e("agent", "mem", ""), e("agent", "idn", "--user-id"), e("agent", "ext", "tools", { from: "r", to: "l" }),
+      e("gw", "mcp", "Gateway role", { flow: true }), e("mcp", "ext", "", { from: "r", to: "b" }),
+      e("gh", "cfn", "deploy"), e("cfn", "rt", "", { from: "t", to: "b", dashed: true }), e("cfn", "gw", "", { from: "t", to: "b", dashed: true }),
+      e("rt", "cw", "", { from: "b", to: "l", dashed: true }), e("mcp", "cw", "", { from: "b", to: "t", dashed: true }),
+    ],
+    added: ["2 runtimes, 1 memory, 1 gateway + target, 1 credential provider, all in agentcore.json", "70 tests run in CI before every deploy", "Open next: JWT inbound auth, Gateway-only access to financetools, Guardrails, alarms, an evaluation set"],
+    files: ["agentcore/agentcore.json", "agentcore/cdk/lib/cdk-stack.ts", "app/agendev/", "app/financetools/"],
+    verified: ["Chat, Alpha Vantage, report, swarm and Gateway MCP calls all checked against the live deployment"],
+  });
+
+  // SVG attributes (background dots, arrowheads, minimap) cannot use var(), so resolve tokens.
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const colorOf = (value) => value.startsWith("var(") ? cssVar(value.slice(4, -1)) : value;
+  function useThemeVersion() {
+    const [version, setVersion] = React.useState(0);
+    React.useEffect(() => {
+      const bump = () => setVersion((v) => v + 1);
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+      media.addEventListener("change", bump);
+      const observer = new MutationObserver(bump);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+      return () => { media.removeEventListener("change", bump); observer.disconnect(); };
+    }, []);
+    return version;
+  }
+
+  const SIDES = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom };
+
+  function StageNode({ data }) {
+    const kind = KINDS[data.kind];
+    const handles = [];
+    for (const [id, pos] of Object.entries(SIDES)) {
+      handles.push(h(Handle, { key: id + "-t", id: id + "-t", type: "target", position: pos }));
+      handles.push(h(Handle, { key: id + "-s", id: id + "-s", type: "source", position: pos }));
+    }
+    return h("div", { className: "node" + (data.isNew ? " new" : ""), style: { "--kind": kind.color } },
+      handles,
+      h("div", { className: "kind" }, h("span", null, kind.label), data.isNew ? h("b", null, "new") : null),
+      h("div", { className: "title" }, data.title),
+      data.sub ? h("div", { className: "sub" }, data.sub) : null
+    );
+  }
+  const nodeTypes = { stage: StageNode };
+
+  function toFlow(stage) {
+    const nodes = stage.nodes.map((d) => ({ id: d.id, type: "stage", position: { x: d.x, y: d.y }, data: d, draggable: true }));
+    const edges = stage.edges.map((d, i) => ({
+      id: stage.key + "-e" + i,
+      source: d.source, target: d.target,
+      sourceHandle: (d.from || "r") + "-s", targetHandle: (d.to || "l") + "-t",
+      type: "smoothstep", label: d.label || undefined, animated: !!d.flow,
+      labelBgPadding: [4, 2], labelBgBorderRadius: 3,
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: colorOf(d.flow ? "var(--accent)" : "var(--muted)") },
+      style: d.dashed ? { strokeDasharray: "5 4" } : undefined,
+    }));
+    return { nodes, edges };
+  }
+
+  function stageFromHash() {
+    const key = (location.hash || "").replace("#", "");
+    return Math.max(0, STAGES.findIndex((s) => s.key === key));
+  }
+
+  function App() {
+    const [index, setIndex] = React.useState(stageFromHash);
+    React.useEffect(() => {
+      const onHash = () => setIndex(stageFromHash());
+      window.addEventListener("hashchange", onHash);
+      return () => window.removeEventListener("hashchange", onHash);
+    }, []);
+    const stage = STAGES[index];
+    const theme = useThemeVersion();
+    const flow = React.useMemo(() => toFlow(stage), [stage, theme]);
+    const select = (i) => { location.hash = STAGES[i].key; setIndex(i); };
+
+    const usedKinds = Array.from(new Set(stage.nodes.map((d) => d.kind)));
+    const list = (items) => h("ul", null, items.map((t, i) => h("li", { key: i }, t)));
+
+    return h("div", { className: "workspace" },
+      h("nav", { className: "rail", "aria-label": "Stages" },
+        STAGES.map((s, i) => h("button", { key: s.key, type: "button", "aria-current": i === index ? "true" : "false", onClick: () => select(i) },
+          h("span", { className: "num" }, s.key === "full" ? "all" : String(i + 1).padStart(2, "0")),
+          h("span", null, h("div", { className: "t" }, s.short), h("div", { className: "s" }, s.sub))
+        ))
+      ),
+      h("div", { className: "main" },
+        h("div", { className: "stagehead" },
+          h("h2", null, stage.title),
+          h("span", { className: "commit" }, "commits " + stage.commit)
+        ),
+        h("p", { className: "summary" }, stage.summary),
+        h("div", { className: "canvas" },
+          h(Flow, {
+            key: stage.key, nodes: flow.nodes, edges: flow.edges, nodeTypes,
+            fitView: true, fitViewOptions: { padding: 0.15 }, minZoom: 0.2, maxZoom: 1.6,
+            nodesConnectable: false, proOptions: { hideAttribution: true },
+          },
+            h(Background, { color: colorOf("var(--grid)"), gap: 22, size: 1.2 }),
+            h(Controls, { showInteractive: false }),
+            window.innerWidth > 700 ? h(MiniMap, { pannable: true, zoomable: true, nodeColor: (nd) => colorOf(KINDS[nd.data.kind].color), maskColor: "rgba(120,130,140,.12)" }) : null
+          )
+        ),
+        h("div", { className: "legend" },
+          usedKinds.map((k) => h("span", { key: k }, h("i", { style: { background: KINDS[k].color } }), KINDS[k].label)),
+          stage.key !== "full" ? h("span", null, h("i", { className: "newkey" }), "new in this stage") : null,
+          h("span", null, "animated line = request path · dashed = config, logs or background")
+        ),
+        h("div", { className: "notes" },
+          h("section", null, h("h3", null, "What this stage added"), list(stage.added)),
+          h("section", null, h("h3", null, "Key files"), h("ul", null, stage.files.map((f, i) => h("li", { key: i }, h("code", null, f))))),
+          h("section", null, h("h3", null, "Checked live"), list(stage.verified))
+        )
+      )
+    );
+  }
+
+  const root = document.getElementById("app");
+  if (!RF || !Flow) {
+    root.innerHTML = '<div class="fallback">The diagram library did not load. Reload the page to try again.</div>';
+    return;
+  }
+  ReactDOM.createRoot(root).render(h(App));
+})();
+</script>
