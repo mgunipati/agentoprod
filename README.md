@@ -292,6 +292,23 @@ aws sns subscribe --region ap-south-1 --protocol email --notification-endpoint y
   --topic-arn "arn:aws:sns:ap-south-1:$(aws sts get-caller-identity --query Account --output text):agentoprod-alarms"
 ```
 
+## Evaluating an answer
+
+`evals/evaluate_trace.py` scores one recorded invocation with AgentCore's
+built-in evaluators (correctness against an expected answer, faithfulness to
+the tool results, helpfulness, tool selection, the exact tool trajectory, and
+goal success against assertions). It reads the trace's spans from CloudWatch,
+so it works on any call the runtime has served in the last 7 days. Take the
+trace ID from the runtime log line `agent_invocation_completed`:
+
+```bash
+uv run python evals/evaluate_trace.py emi <trace-id>
+```
+
+Each question to check is an entry in `CASES`. The script calls the Evaluate API
+itself because `agentcore eval ondemand` resolves the runtime from the local
+deployed state, which is empty when CI does the deploys.
+
 ## Production considerations
 
 The agent is deployed on AgentCore through CI/CD, with Memory, Identity, an
