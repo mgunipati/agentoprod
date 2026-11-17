@@ -77,11 +77,29 @@ The Alpha Vantage tool reads `ALPHA_VANTAGE_API_KEY` from the environment
 (for example a local, git-ignored `.env`) and reports itself as not configured
 when the key is missing. Market data from both providers may be delayed.
 
-In AgentCore Runtime the key comes from AgentCore Identity instead: add it once
-with `agentcore add credentials api-key --name alpha-vantage --api-key -`
-(reading the key from standard input) and deploy. The runtime receives only the
-provider name (`CREDENTIAL_ALPHA_VANTAGE_NAME`) and fetches the key on each
-call, which requires invoking the runtime with a user ID (`--user-id`).
+In AgentCore Runtime the key comes from AgentCore Identity instead, and it
+lives only in Secrets Manager:
+
+1. Store it as a JSON secret, for example `agentoprod/alpha-vantage` with
+   `{"api_key": "..."}`.
+2. Reference it from the project (the reference, never the value, goes into
+   `agentcore/agentcore.json`):
+
+   ```bash
+   agentcore add credentials api-key --name alpha-vantage \
+     --api-key-secret-reference '{"secretId": "<secret ARN>", "jsonKey": "api_key"}'
+   ```
+
+3. Deploy. `agentcore deploy` creates the Identity credential provider with a
+   direct API call, so the CI role needs the `agentcore-credentials` IAM policy
+   (credential-provider actions on the token vault, read on that one secret).
+
+The runtime receives only the provider name (`CREDENTIAL_ALPHA_VANTAGE_NAME`)
+and fetches the key on each call with its workload identity, which requires
+invoking it with a user ID (`agentcore invoke --user-id ...`). The construct
+only lets runtimes read secrets Identity manages itself, so
+`agentcore/cdk/lib/cdk-stack.ts` grants the agent runtime read access to the
+external secrets referenced in `agentcore.json`.
 
 ## Stock report graph
 
@@ -201,9 +219,24 @@ cd app/financetools && uv run python main.py
 
 ## Production considerations
 
-This repository provides a CLI baseline, not a complete hosted enterprise
-deployment. Before exposing it to users, integrate your organization's identity
-and authorization layer, provision and configure Bedrock Guardrails, set up
-centralized trace/metric collection and alerting, and define retention and
-network policies. Keep tool integrations opt-in and grant each tool only the
-permissions it needs.
+The agent is deployed on AgentCore through CI/CD, with Memory, Identity, an
+MCP tool server and a Gateway. `agentcore/cdk/lib/cdk-stack.ts` adds what the
+generated stack leaves out: the agent runtime alone may read the external
+Alpha Vantage secret, the tool-only `financetools` runtime is denied Memory,
+model and API key access (the construct grants every runtime access to every
+project resource), and runtime logs are kept for 30 days instead of forever.
+
+Still open before real users:
+
+- **Inbound auth:** runtimes and the Gateway accept IAM (SigV4) callers only.
+  A web or mobile client needs a JWT authorizer (for example Cognito).
+- **One way in to the tools:** `financetools` can still be called directly by
+  anyone with IAM permission to invoke it; a resource policy can limit it to
+  the Gateway's role.
+- **One user identity:** `--user-id` (AgentCore Identity) and the payload's
+  `user_id` (Memory) are separate values today; derive both from the same
+  authenticated user.
+- **Content safety:** add Bedrock Guardrails; Nova's built-in filter
+  sometimes stops answers (`stop_reason: content_filtered`).
+- **Monitoring:** alarms on runtime errors and latency, and an evaluation set
+  that checks tool routing and catches invented figures.

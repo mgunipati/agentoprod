@@ -1,9 +1,44 @@
 import { AgentCoreApplication, type AgentCoreApplicationProps } from '@aws/agentcore-cdk';
 import { Stack, type StackProps } from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as fs from 'fs';
 import * as path from 'path';
+
+/** Runtimes that run an agent: they call models, use Memory and fetch API keys. */
+const AGENT_RUNTIMES = ['agendev'];
+
+/** Runtimes that only serve tools (the finance MCP server). */
+const TOOL_ONLY_RUNTIMES = ['financetools'];
+
+/**
+ * What a tool-only runtime must never do. The AgentCore construct wires every project resource to
+ * every runtime, so without this the MCP server could read and delete chat memory, call models
+ * and fetch API keys. An explicit Deny overrides those generated Allows.
+ */
+const TOOL_ONLY_DENIED_ACTIONS = [
+  'bedrock-agentcore:CreateEvent',
+  'bedrock-agentcore:GetEvent',
+  'bedrock-agentcore:ListEvents',
+  'bedrock-agentcore:DeleteEvent',
+  'bedrock-agentcore:GetMemory',
+  'bedrock-agentcore:GetMemoryRecord',
+  'bedrock-agentcore:ListMemoryRecords',
+  'bedrock-agentcore:RetrieveMemoryRecords',
+  'bedrock-agentcore:DeleteMemoryRecord',
+  'bedrock-agentcore:BatchCreateMemoryRecords',
+  'bedrock-agentcore:BatchUpdateMemoryRecords',
+  'bedrock-agentcore:BatchDeleteMemoryRecords',
+  'bedrock-agentcore:GetResourceApiKey',
+  'bedrock-agentcore:GetApiKeyCredential',
+  'bedrock:InvokeModel',
+  'bedrock:InvokeModelWithResponseStream',
+];
+
+/** Runtime logs contain prompts and answers; keep them a month, not forever. */
+const LOG_RETENTION = logs.RetentionDays.ONE_MONTH;
 
 export interface AgentCoreStackProps extends StackProps {
   /** Props for the AgentCore application, produced by transformAgentCoreJson from agentcore/agentcore.json. */
@@ -21,28 +56,22 @@ export class AgentCoreStack extends Stack {
   constructor(scope: Construct, id: string, props: AgentCoreStackProps) {
     super(scope, id, props);
     this.application = new AgentCoreApplication(this, 'Application', props.application);
-    this.grantExternalCredentialSecrets(props.application);
 
-    // Example: give a runtime a DynamoDB table.
-    //
-    // import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-    // const orders = new dynamodb.Table(this, 'Orders', {
-    //   partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
-    // });
-    // const checkout = this.application.runtime('checkout'); // or .harness('support')
-    // checkout.grantReadWrite(orders);
-    // checkout.addEnvironmentVariable('ORDERS_TABLE', orders.tableName);
+    const runtimeNames = (props.application.spec.runtimes ?? []).map((runtime) => runtime.name);
+    this.grantExternalCredentialSecrets(props.application, runtimeNames.filter((name) => AGENT_RUNTIMES.includes(name)));
+    this.restrictToolOnlyRuntimes(runtimeNames.filter((name) => TOOL_ONLY_RUNTIMES.includes(name)));
+    this.limitLogRetention(runtimeNames);
   }
 
   /**
-   * Let every runtime read the Secrets Manager secrets behind external API key credentials.
+   * Let agent runtimes read the Secrets Manager secrets behind external API key credentials.
    *
    * A credential added with `--api-key-secret-reference` points AgentCore Identity at your own
    * secret (apiKeySecretSource EXTERNAL). The construct only lets runtimes read the secrets
    * Identity manages (`bedrock-agentcore-identity!*`), so fetching such a key with
    * GetResourceApiKey fails with AccessDeniedException until the runtime can read the secret.
    */
-  private grantExternalCredentialSecrets(application: AgentCoreApplicationProps): void {
+  private grantExternalCredentialSecrets(application: AgentCoreApplicationProps, runtimes: string[]): void {
     // transformAgentCoreJson drops secretRef from the spec it passes in, so read the
     // references from agentcore/agentcore.json itself.
     type Credential = { secretRef?: { secretId?: unknown } };
@@ -54,9 +83,34 @@ export class AgentCoreStack extends Stack {
 
     secretArns.forEach((arn, index) => {
       const secret = secretsmanager.Secret.fromSecretCompleteArn(this, `ExternalCredentialSecret${index}`, arn);
-      for (const runtime of application.spec.runtimes ?? []) {
-        secret.grantRead(this.application.runtime(runtime.name));
+      for (const name of runtimes) {
+        secret.grantRead(this.application.runtime(name));
       }
     });
+  }
+
+  /** Deny tool-only runtimes the Memory, model and API key access the construct gives every runtime. */
+  private restrictToolOnlyRuntimes(runtimes: string[]): void {
+    for (const name of runtimes) {
+      this.application.runtime(name).addToRolePolicy(
+        new iam.PolicyStatement({
+          sid: 'ToolOnlyRuntimeDenyAgentAccess',
+          effect: iam.Effect.DENY,
+          actions: TOOL_ONLY_DENIED_ACTIONS,
+          resources: ['*'],
+        }),
+      );
+    }
+  }
+
+  /** AgentCore creates each runtime's log group with no expiry; set a retention period instead. */
+  private limitLogRetention(runtimes: string[]): void {
+    for (const name of runtimes) {
+      const runtime = this.application.runtime(name);
+      new logs.LogRetention(this, `LogRetention-${name}`, {
+        logGroupName: `/aws/bedrock-agentcore/runtimes/${runtime.runtimeId}-DEFAULT`,
+        retention: LOG_RETENTION,
+      });
+    }
   }
 }
