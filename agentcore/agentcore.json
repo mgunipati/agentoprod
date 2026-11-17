@@ -43,7 +43,16 @@
     }
   ],
   "knowledgeBases": [],
-  "credentials": [],
+  "credentials": [
+    {
+      "authorizerType": "ApiKeyCredentialProvider",
+      "name": "alpha-vantage",
+      "secretRef": {
+        "secretId": "arn:aws:secretsmanager:ap-south-1:223956247301:secret:agentoprod/alpha-vantage-LkFNFc",
+        "jsonKey": "api_key"
+      }
+    }
+  ],
   "evaluators": [],
   "onlineEvalConfigs": [],
   "agentCoreGateways": [
