@@ -16,16 +16,12 @@ to put its findings into the handoff message.
 
 from strands import Agent
 from strands.models import Model
-from strands.multiagent import Swarm, SwarmResult
+from strands.multiagent import Swarm
 from strands.multiagent.base import Status
 from strands.multiagent.swarm import SwarmResult
 
-if __package__:
-    from .finance_tools import get_company_financials, get_stock_history, get_stock_price, loan_emi
-    from .agent_factory import reply_text
-else:
-    from finance_tools import get_company_financials, get_stock_history, get_stock_price, loan_emi
-    from agent_factory import reply_text
+from agents.agent_factory import reply_text
+from tools.finance_tools import get_company_financials, get_stock_history, get_stock_price, loan_emi
 
 RESEARCHER_PROMPT = """You are the researcher in a team of financial agents. Use your
 tools to collect the facts the request needs: prices, history, financials or loan

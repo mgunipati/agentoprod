@@ -1,10 +1,10 @@
-"""AgentCore Runtime `financetools`: the finance tools as an MCP server.
+"""AgentCore Runtime `financetools` (folder app/mcp-finance): the finance tools as an MCP server.
 
 The chat agent (runtime `agendev`) keeps calling these tools directly in
 Python. This server offers the same tools over MCP so other agents and clients
 can use them, through the AgentCore Gateway `tools`.
 
-finance_tools.py is a symlink to app/agendev/finance_tools.py, so both
+finance_tools.py is a symlink to app/agendev/tools/finance_tools.py, so both
 runtimes ship the same code: names, docstrings, validation and error handling.
 
 AgentCore's MCP contract: streamable HTTP on 0.0.0.0:8000 at POST /mcp,

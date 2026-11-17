@@ -8,13 +8,17 @@ import uuid
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+
+# Import the runtime's modules the way AgentCore does: from app/agendev.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "app" / "agendev"))
 
 from strands.models import Model
 from strands.multiagent.base import MultiAgentBase
 from strands.multiagent.swarm import SwarmResult
 
-from app.agendev.agent_factory import (
+from agents.agent_factory import (
     AgentSettings,
     create_agent,
     create_multi_agent_model,
@@ -22,8 +26,8 @@ from app.agendev.agent_factory import (
     reply_text,
     rollback_on_failure,
 )
-from app.agendev.report_graph import create_report_graph, report_text
-from app.agendev.research_swarm import create_research_swarm, handoff_path, swarm_answer
+from agents.report_graph import create_report_graph, report_text
+from agents.research_swarm import create_research_swarm, handoff_path, swarm_answer
 
 
 class JsonLogFormatter(logging.Formatter):

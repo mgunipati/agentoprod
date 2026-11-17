@@ -66,7 +66,7 @@ configured by this option.
 
 ## Financial tools
 
-`app/agendev/finance_tools.py` gives the agent a loan EMI calculator, Yahoo Finance tools
+`app/agendev/tools/finance_tools.py` gives the agent a loan EMI calculator, Yahoo Finance tools
 for current price, price history and company financials, and an Alpha Vantage
 quote tool. Each tool validates its arguments, returns a dict that includes the
 listed currency, and reports fetch failures without exception details. To add
@@ -105,7 +105,7 @@ external secrets referenced in `agentcore.json`.
 
 ## Stock report graph
 
-`app/agendev/report_graph.py` builds a Strands Graph with a fixed flow:
+`app/agendev/agents/report_graph.py` builds a Strands Graph with a fixed flow:
 `fetch` (the only node with the Yahoo Finance tools) → `analyse` (compares using
 only the fetched data) → `review` (checks the numbers, removes recommendations
 and writes the final report). Unlike the chat agent, where the model chooses
@@ -118,7 +118,7 @@ uv run python cli.py --report "Compare RELIANCE.NS and TCS.NS"
 
 ## Research swarm
 
-`app/agendev/research_swarm.py` builds a Strands Swarm of three agents —
+`app/agendev/agents/research_swarm.py` builds a Strands Swarm of three agents —
 `researcher` (the only one with data tools), `analyst` and `writer` — that pass
 work to each other with a `handoff_to_agent` tool. Unlike the report graph, the
 agents choose the path: a loan question may go researcher → writer, and the
@@ -133,8 +133,10 @@ uv run python cli.py --observe --swarm "Compare RELIANCE.NS and TCS.NS"
 ## AgentCore Runtime
 
 `app/agendev/main.py` wraps the same agent in the AgentCore HTTP contract.
-The shared agent, finance, and observability modules live under `app/agendev/`
-and are imported by both the local CLI and runtime. The runtime always enables
+The shared modules live in packages under `app/agendev/`: `agents/` (chat agent,
+report graph, research swarm), `tools/` (finance and tutor tools), `memory/` and
+`observability/`. `app/agendev` is the import root (`from tools.finance_tools
+import ...`) for the runtime, the local CLI and the tests alike. The runtime always enables
 the lifecycle hooks and logs model/tool events with a per-invocation request ID;
 events omit prompts, responses, tool arguments, and tool results. AgentCore's
 application logger also records invocation completion and failure metadata.
@@ -190,7 +192,7 @@ The `financetools` MCP runtime and the `tools` Gateway still use IAM (SigV4).
 ## AgentCore Memory
 
 The `chat` memory in `agentcore/agentcore.json` gives the deployed runtime
-`MEMORY_CHAT_ID`. With it set, `app/agendev/memory_session.py` attaches an
+`MEMORY_CHAT_ID`. With it set, `app/agendev/memory/memory_session.py` attaches an
 AgentCore Memory session manager to the chat agent:
 
 - **Short-term:** every message is saved as an event for the user and session,
@@ -212,11 +214,11 @@ agentcore invoke --runtime agendev --bearer-token "$TOKEN" --session-id ... --pa
 
 ## Finance tools as an MCP server
 
-The `financetools` runtime (`app/financetools/main.py`) serves the five finance
+The `financetools` runtime (`app/mcp-finance/main.py`) serves the five finance
 tools over MCP (streamable HTTP, `POST /mcp` on port 8000), so other agents and
 clients can use them. The chat agent still calls them directly in Python.
-`app/financetools/finance_tools.py` is a symlink to
-`app/agendev/finance_tools.py`, so both runtimes ship the same code; the CodeZip
+`app/mcp-finance/finance_tools.py` is a symlink to
+`app/agendev/tools/finance_tools.py`, so both runtimes ship the same code; the CodeZip
 bundle contains the real file.
 
 The `tools` Gateway (inbound `AWS_IAM`, no protocol type) forwards to the
@@ -237,7 +239,7 @@ agentcore invoke --runtime financetools \
   --payload '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "loan_emi", "arguments": {"principal": 1000000, "annual_rate_percent": 9, "months": 60}}}'
 
 # Locally: serves http://localhost:8000/mcp
-cd app/financetools && uv run python main.py
+cd app/mcp-finance && uv run python main.py
 ```
 
 ## Production considerations

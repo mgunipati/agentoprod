@@ -33,11 +33,11 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
 from strands.types.exceptions import ConcurrencyException
 
-from agent_factory import AgentSettings, create_agent, create_multi_agent_model, prompt_error, reply_text, rollback_on_failure
-from memory_session import valid_memory_id
-from observability import log_fields_in_message
-from report_graph import create_report_graph, report_text
-from research_swarm import create_research_swarm, handoff_path, swarm_answer
+from agents.agent_factory import AgentSettings, create_agent, create_multi_agent_model, prompt_error, reply_text, rollback_on_failure
+from agents.report_graph import create_report_graph, report_text
+from agents.research_swarm import create_research_swarm, handoff_path, swarm_answer
+from memory.memory_session import valid_memory_id
+from observability.observability import log_fields_in_message
 
 app = BedrockAgentCoreApp()
 # AgentCore's log format prints only the message text, so put the fields in it.

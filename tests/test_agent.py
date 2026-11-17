@@ -3,7 +3,7 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from app.agendev.agent_factory import (
+from agents.agent_factory import (
     AgentSettings,
     create_agent,
     create_multi_agent_model,
@@ -11,7 +11,7 @@ from app.agendev.agent_factory import (
     reply_text,
     rollback_on_failure,
 )
-from app.agendev.finance_tools import FINANCE_TOOLS
+from tools.finance_tools import FINANCE_TOOLS
 from strands import Agent
 from strands.types.exceptions import ConcurrencyException
 

@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 
 from strands.hooks import AgentInitializedEvent
 
-from app.agendev import agent_factory
-from app.agendev.agent_factory import AgentSettings, create_agent
-from app.agendev.memory_session import (
+from agents import agent_factory
+from agents.agent_factory import AgentSettings, create_agent
+from memory.memory_session import (
     MEMORY_ID_ENV,
     RETRIEVAL,
     drop_unfinished_turns,

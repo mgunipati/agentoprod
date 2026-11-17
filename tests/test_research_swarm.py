@@ -3,7 +3,7 @@ import unittest
 from strands.models import Model
 from strands.multiagent.base import Status
 
-from app.agendev.research_swarm import create_research_swarm, handoff_path, swarm_answer
+from agents.research_swarm import create_research_swarm, handoff_path, swarm_answer
 
 FINAL = "Final answer. This is general information, not investment advice."
 

@@ -12,7 +12,7 @@ from strands import Agent, tool
 from strands.models import Model
 
 import cli
-from app.agendev.observability import ConsoleObservationHooks, FieldsInMessageFilter
+from observability.observability import ConsoleObservationHooks, FieldsInMessageFilter
 
 
 class FakeModel(Model):
@@ -100,7 +100,7 @@ class ObservabilityTests(unittest.TestCase):
         with contextlib.ExitStack() as stack:
             stack.enter_context(patch.object(sys, "argv", ["cli.py", *args]))
             stack.enter_context(
-                patch("app.agendev.agent_factory.BedrockModel", return_value=model or FakeModel())
+                patch("agents.agent_factory.BedrockModel", return_value=model or FakeModel())
             )
             if inputs is not None:
                 stack.enter_context(patch("builtins.input", side_effect=inputs))

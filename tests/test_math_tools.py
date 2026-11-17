@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from strands.models import Model
 
-from app.agendev.math_tools import create_math_tools, create_tutor_agents
+from tools.math_tools import create_math_tools, create_tutor_agents
 
 
 class MathToolsTests(unittest.TestCase):

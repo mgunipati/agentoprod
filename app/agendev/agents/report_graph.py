@@ -19,12 +19,8 @@ from strands.multiagent import GraphBuilder
 from strands.multiagent.base import Status
 from strands.multiagent.graph import Graph, GraphResult
 
-if __package__:
-    from .finance_tools import get_company_financials, get_stock_history, get_stock_price
-    from .agent_factory import reply_text
-else:
-    from finance_tools import get_company_financials, get_stock_history, get_stock_price
-    from agent_factory import reply_text
+from agents.agent_factory import reply_text
+from tools.finance_tools import get_company_financials, get_stock_history, get_stock_price
 
 FETCH_PROMPT = """You collect market data for a stock report. Use the tools to get
 the current price, price history and company financials for every company in the

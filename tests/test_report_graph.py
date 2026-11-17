@@ -4,7 +4,7 @@ from strands.models import Model
 from strands.multiagent.base import Status
 from strands.multiagent.graph import GraphResult
 
-from app.agendev.report_graph import create_report_graph, report_text
+from agents.report_graph import create_report_graph, report_text
 
 REPLIES = {
     "You collect market data": "FETCHED: price 100 INR",

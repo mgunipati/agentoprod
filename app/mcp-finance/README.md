@@ -87,7 +87,7 @@ import os
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP(
-    "financetools",
+    "mcp-finance",
     host="0.0.0.0",
     port=int(os.environ.get("FASTMCP_PORT", "8000")),
     stateless_http=True,

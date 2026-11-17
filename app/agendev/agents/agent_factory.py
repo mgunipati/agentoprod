@@ -11,14 +11,9 @@ from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.models import BedrockModel
 from strands.types.exceptions import ConcurrencyException
 
-if __package__:
-    from .finance_tools import FINANCE_TOOLS
-    from .math_tools import create_math_tools
-    from .memory_session import drop_unfinished_turns, memory_session_manager
-else:
-    from finance_tools import FINANCE_TOOLS
-    from math_tools import create_math_tools
-    from memory_session import drop_unfinished_turns, memory_session_manager
+from memory.memory_session import drop_unfinished_turns, memory_session_manager
+from tools.finance_tools import FINANCE_TOOLS
+from tools.math_tools import create_math_tools
 
 
 SYSTEM_PROMPT = """You are a clear, reliable general-purpose assistant.
@@ -135,10 +130,7 @@ def create_agent(
 
     hooks = []
     if observe:
-        if __package__:
-            from .observability import ConsoleObservationHooks
-        else:
-            from observability import ConsoleObservationHooks
+        from observability.observability import ConsoleObservationHooks
 
         hooks.append(ConsoleObservationHooks())
 

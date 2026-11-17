@@ -24,7 +24,7 @@
       "description": "Finance tools as an MCP server",
       "build": "CodeZip",
       "entrypoint": "main.py",
-      "codeLocation": "app/financetools",
+      "codeLocation": "app/mcp-finance",
       "runtimeVersion": "PYTHON_3_14",
       "protocol": "MCP"
     }
