@@ -42,6 +42,9 @@ class AgentSettings:
     region: str = "ap-south-1"
     max_tokens: int = 1024
     max_input_chars: int = 20_000
+    # Bedrock Guardrail (ARN or ID) and its numbered version; CDK sets both on the runtime.
+    guardrail_id: str | None = None
+    guardrail_version: str | None = None
 
     @classmethod
     def from_env(
@@ -69,6 +72,8 @@ class AgentSettings:
             ).strip(),
             max_tokens=max_tokens,
             max_input_chars=max_input_chars,
+            guardrail_id=os.getenv("BEDROCK_GUARDRAIL_ID", "").strip() or None,
+            guardrail_version=os.getenv("BEDROCK_GUARDRAIL_VERSION", "").strip() or None,
         )
         settings.validate()
         return settings
@@ -82,14 +87,37 @@ class AgentSettings:
             raise ValueError("BEDROCK_MAX_TOKENS must be greater than zero")
         if self.max_input_chars < 1:
             raise ValueError("AGENT_MAX_INPUT_CHARS must be greater than zero")
+        if bool(self.guardrail_id) != bool(self.guardrail_version):
+            raise ValueError("Set both BEDROCK_GUARDRAIL_ID and BEDROCK_GUARDRAIL_VERSION, or neither")
+        if self.guardrail_version and not self.guardrail_version.isdigit():
+            # DRAFT can change without a deploy; pin a numbered version.
+            raise ValueError("BEDROCK_GUARDRAIL_VERSION must be a numbered version, not DRAFT")
+
+
+def guardrail_config(settings: AgentSettings) -> dict:
+    """BedrockModel options that apply the Guardrail to every model call, or {} when none is set.
+
+    Bedrock checks the user input, tool results and the model's answer on each call; the
+    system prompt is never checked. Trace is off so blocked text (which can be the PII it
+    caught) is not returned in the response. When the Guardrail steps in, Strands replaces
+    the user's message in the history so it is not re-sent on later turns.
+    """
+    if not settings.guardrail_id:
+        return {}
+    return {
+        "guardrail_id": settings.guardrail_id,
+        "guardrail_version": settings.guardrail_version,
+        "guardrail_trace": "disabled",
+    }
 
 
 def create_model(settings: AgentSettings) -> BedrockModel:
-    """The Bedrock model shared by the chat agent and the report graph."""
+    """The Bedrock model shared by the chat agent, tutors, report graph and swarm."""
     return BedrockModel(
         model_id=settings.model_id,
         region_name=settings.region,
         max_tokens=settings.max_tokens,
+        **guardrail_config(settings),
         boto_client_config=Config(
             connect_timeout=5,
             read_timeout=120,

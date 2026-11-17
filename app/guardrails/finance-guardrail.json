@@ -1,0 +1,51 @@
+{
+  "name": "agentoprod-finance",
+  "description": "Safety policy for the agentoprod finance agent: harmful content, prompt attacks, personal investment advice and payment details.",
+  "blockedInputMessaging": "I can't help with that request. I can look up stock prices, price history and company financials, and calculate loan EMIs, but I don't give personal buy, sell or hold advice. Please don't share card or bank account numbers.",
+  "blockedOutputsMessaging": "I can't share that answer. I can give factual market data and loan calculations, but not personal investment advice or payment details.",
+  "contentPolicyConfig": {
+    "filtersConfig": [
+      { "type": "HATE", "inputStrength": "HIGH", "outputStrength": "HIGH" },
+      { "type": "SEXUAL", "inputStrength": "HIGH", "outputStrength": "HIGH" },
+      { "type": "VIOLENCE", "inputStrength": "MEDIUM", "outputStrength": "MEDIUM" },
+      { "type": "INSULTS", "inputStrength": "MEDIUM", "outputStrength": "MEDIUM" },
+      { "type": "MISCONDUCT", "inputStrength": "MEDIUM", "outputStrength": "MEDIUM" },
+      { "type": "PROMPT_ATTACK", "inputStrength": "HIGH", "outputStrength": "NONE" }
+    ]
+  },
+  "topicPolicyConfig": {
+    "topicsConfig": [
+      {
+        "name": "PersonalInvestmentAdvice",
+        "type": "DENY",
+        "definition": "Recommendations telling a person to buy, sell or hold a specific security, or how to invest or allocate their own money or portfolio.",
+        "examples": [
+          "Should I buy RELIANCE shares now?",
+          "Is it a good time for me to sell my TCS stock?",
+          "How much of my savings should I put into Nifty 50 funds?",
+          "Which stock should I invest my bonus in?",
+          "Tell me a stock that will double this year."
+        ]
+      }
+    ]
+  },
+  "sensitiveInformationPolicyConfig": {
+    "piiEntitiesConfig": [
+      { "type": "CREDIT_DEBIT_CARD_NUMBER", "action": "BLOCK" },
+      { "type": "CREDIT_DEBIT_CARD_CVV", "action": "BLOCK" },
+      { "type": "PIN", "action": "BLOCK" },
+      { "type": "US_BANK_ACCOUNT_NUMBER", "action": "BLOCK" },
+      { "type": "INTERNATIONAL_BANK_ACCOUNT_NUMBER", "action": "BLOCK" },
+      { "type": "EMAIL", "action": "ANONYMIZE" },
+      { "type": "PHONE", "action": "ANONYMIZE" }
+    ],
+    "regexesConfig": [
+      {
+        "name": "IndianPAN",
+        "description": "Indian Permanent Account Number, for example ABCDE1234F",
+        "pattern": "\\b[A-Z]{5}[0-9]{4}[A-Z]\\b",
+        "action": "ANONYMIZE"
+      }
+    ]
+  }
+}

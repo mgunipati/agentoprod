@@ -6,6 +6,7 @@ from unittest.mock import patch
 from agents.agent_factory import (
     AgentSettings,
     create_agent,
+    create_model,
     create_multi_agent_model,
     prompt_error,
     reply_text,
@@ -87,6 +88,30 @@ class AgentSettingsTests(unittest.TestCase):
     def test_multi_agent_model_gets_at_least_2048_tokens(self) -> None:
         self.assertEqual(create_multi_agent_model(AgentSettings(max_tokens=1024)).config["max_tokens"], 2048)
         self.assertEqual(create_multi_agent_model(AgentSettings(max_tokens=4096)).config["max_tokens"], 4096)
+
+    def test_guardrail_comes_from_the_environment_and_reaches_every_model(self) -> None:
+        arn = "arn:aws:bedrock:ap-south-1:123456789012:guardrail/abc123"
+        with patch.dict(os.environ, {"BEDROCK_GUARDRAIL_ID": arn, "BEDROCK_GUARDRAIL_VERSION": "3"}, clear=True):
+            settings = AgentSettings.from_env()
+
+        for model in (create_model(settings), create_multi_agent_model(settings)):
+            self.assertEqual(model.config["guardrail_id"], arn)
+            self.assertEqual(model.config["guardrail_version"], "3")
+            # Trace would return the blocked text (possibly the PII caught) in the response.
+            self.assertEqual(model.config["guardrail_trace"], "disabled")
+
+    def test_without_a_guardrail_the_model_has_none(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            config = create_model(AgentSettings.from_env()).config
+        self.assertNotIn("guardrail_id", config)
+
+    def test_guardrail_needs_id_and_a_numbered_version(self) -> None:
+        with self.assertRaisesRegex(ValueError, "both"):
+            AgentSettings(guardrail_id="abc123").validate()
+        with self.assertRaisesRegex(ValueError, "both"):
+            AgentSettings(guardrail_version="1").validate()
+        with self.assertRaisesRegex(ValueError, "not DRAFT"):
+            AgentSettings(guardrail_id="abc123", guardrail_version="DRAFT").validate()
 
     def test_reply_text_removes_thinking(self) -> None:
         reply = "<thinking>The user wants\na square.</thinking>\n\n12 squared is 144. <thinking>done</thinking>"

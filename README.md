@@ -30,6 +30,7 @@ selected Bedrock model.
 | `AWS_REGION` / `AWS_DEFAULT_REGION` / `--region` | `ap-south-1` | AWS region used for the Bedrock request |
 | `BEDROCK_MAX_TOKENS` / `--max-tokens` | `1024` | Maximum generated output tokens |
 | `AGENT_MAX_INPUT_CHARS` | `20000` | Per-message input limit |
+| `BEDROCK_GUARDRAIL_ID` / `BEDROCK_GUARDRAIL_VERSION` | unset | Bedrock Guardrail applied to every model call; set together, numbered version only. The deployed runtime gets both from CDK |
 
 Command-line options take precedence over their corresponding environment variables.
 The interactive session keeps a bounded conversation history in process memory;
@@ -242,6 +243,23 @@ agentcore invoke --runtime financetools \
 cd app/mcp-finance && uv run python main.py
 ```
 
+## Guardrails
+
+`app/guardrails/finance-guardrail.json` defines a Bedrock Guardrail that CDK
+creates on deploy: content filters, prompt-attack detection, a denied topic for
+personal buy/sell/hold advice, and PII rules (card and bank account numbers
+blocked; email, phone and PAN masked). A numbered version is pinned, and the
+agent runtime gets `BEDROCK_GUARDRAIL_ID` and `BEDROCK_GUARDRAIL_VERSION`, which
+`agents/agent_factory.py` passes on every Bedrock call (mode `guardrailConfig`).
+The runtime's IAM role denies model calls that don't carry this Guardrail. When
+it steps in, the chat response has `"stop_reason": "guardrail_intervened"`.
+See [app/guardrails/README.md](app/guardrails/README.md) for the policy table,
+tuning, and the check script:
+
+```bash
+uv run python app/guardrails/check_guardrail.py
+```
+
 ## Production considerations
 
 The agent is deployed on AgentCore through CI/CD, with Memory, Identity, an
@@ -249,7 +267,8 @@ MCP tool server and a Gateway. `agentcore/cdk/lib/cdk-stack.ts` adds what the
 generated stack leaves out: the agent runtime alone may read the external
 Alpha Vantage secret, the tool-only `financetools` runtime is denied Memory,
 model and API key access (the construct grants every runtime access to every
-project resource), and runtime logs are kept for 30 days instead of forever.
+project resource), every model call from the agent runtime must carry the
+finance Guardrail, and runtime logs are kept for 30 days instead of forever.
 
 Still open before real users:
 
@@ -260,7 +279,5 @@ Still open before real users:
 - **One way in to the tools:** `financetools` can still be called directly by
   anyone with IAM permission to invoke it; a resource policy can limit it to
   the Gateway's role.
-- **Content safety:** add Bedrock Guardrails; Nova's built-in filter
-  sometimes stops answers (`stop_reason: content_filtered`).
 - **Monitoring:** alarms on runtime errors and latency, and an evaluation set
   that checks tool routing and catches invented figures.

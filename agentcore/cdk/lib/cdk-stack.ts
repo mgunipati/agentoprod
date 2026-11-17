@@ -1,9 +1,11 @@
 import { AgentCoreApplication, type AgentCoreApplicationProps } from '@aws/agentcore-cdk';
 import { Stack, type StackProps } from 'aws-cdk-lib';
+import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -37,6 +39,9 @@ const TOOL_ONLY_DENIED_ACTIONS = [
   'bedrock:InvokeModelWithResponseStream',
 ];
 
+/** The Guardrail every model call from an agent runtime must carry (see app/guardrails/README.md). */
+const GUARDRAIL_DEFINITION = path.join('app', 'guardrails', 'finance-guardrail.json');
+
 /** Runtime logs contain prompts and answers; keep them a month, not forever. */
 const LOG_RETENTION = logs.RetentionDays.ONE_MONTH;
 
@@ -58,7 +63,9 @@ export class AgentCoreStack extends Stack {
     this.application = new AgentCoreApplication(this, 'Application', props.application);
 
     const runtimeNames = (props.application.spec.runtimes ?? []).map((runtime) => runtime.name);
-    this.grantExternalCredentialSecrets(props.application, runtimeNames.filter((name) => AGENT_RUNTIMES.includes(name)));
+    const agentRuntimes = runtimeNames.filter((name) => AGENT_RUNTIMES.includes(name));
+    this.grantExternalCredentialSecrets(props.application, agentRuntimes);
+    this.addGuardrail(props.application.projectRoot, agentRuntimes);
     this.restrictToolOnlyRuntimes(runtimeNames.filter((name) => TOOL_ONLY_RUNTIMES.includes(name)));
     this.limitLogRetention(runtimeNames);
   }
@@ -87,6 +94,47 @@ export class AgentCoreStack extends Stack {
         secret.grantRead(this.application.runtime(name));
       }
     });
+  }
+
+  /**
+   * Create the finance Guardrail from app/guardrails/finance-guardrail.json and apply it to agent runtimes.
+   *
+   * A numbered version is pinned (DRAFT can change underneath a running agent). Its logical ID
+   * carries a hash of the definition, so editing the JSON creates a new version and points the
+   * runtime at it in the same deploy. Each runtime gets BEDROCK_GUARDRAIL_ID and _VERSION, which
+   * agent_factory passes on every model call, and an IAM Deny on any model call made without this
+   * Guardrail, so code that forgets it fails instead of running unguarded.
+   */
+  private addGuardrail(projectRoot: string, runtimes: string[]): void {
+    const text = fs.readFileSync(path.join(projectRoot, GUARDRAIL_DEFINITION), 'utf8');
+    const guardrail = new bedrock.CfnGuardrail(this, 'FinanceGuardrail', JSON.parse(text) as bedrock.CfnGuardrailProps);
+    const hash = createHash('sha256').update(text).digest('hex').slice(0, 8);
+    const version = new bedrock.CfnGuardrailVersion(this, `FinanceGuardrailVersion${hash}`, {
+      guardrailIdentifier: guardrail.attrGuardrailId,
+      description: `${GUARDRAIL_DEFINITION} sha256 ${hash}`,
+    });
+
+    for (const name of runtimes) {
+      const runtime = this.application.runtime(name);
+      runtime.addEnvironmentVariable('BEDROCK_GUARDRAIL_ID', guardrail.attrGuardrailArn);
+      runtime.addEnvironmentVariable('BEDROCK_GUARDRAIL_VERSION', version.attrVersion);
+      runtime.addToRolePolicy(
+        new iam.PolicyStatement({
+          sid: 'ApplyFinanceGuardrail',
+          actions: ['bedrock:ApplyGuardrail'],
+          resources: [guardrail.attrGuardrailArn],
+        }),
+      );
+      runtime.addToRolePolicy(
+        new iam.PolicyStatement({
+          sid: 'DenyModelCallsWithoutFinanceGuardrail',
+          effect: iam.Effect.DENY,
+          actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+          resources: ['*'],
+          conditions: { ArnNotLike: { 'bedrock:GuardrailIdentifier': `${guardrail.attrGuardrailArn}:*` } },
+        }),
+      );
+    }
   }
 
   /** Deny tool-only runtimes the Memory, model and API key access the construct gives every runtime. */
