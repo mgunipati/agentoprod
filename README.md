@@ -178,20 +178,25 @@ clients can use them. The chat agent still calls them directly in Python.
 `app/agendev/finance_tools.py`, so both runtimes ship the same code; the CodeZip
 bundle contains the real file.
 
-The `tools` Gateway (inbound `AWS_IAM`, protocol `None`) forwards to the
-runtime with its own IAM role. Callers sign requests with SigV4 and append `/mcp`
-to the Gateway URL. An MCP-protocol Gateway would merge tool catalogues across
-targets, but its MCP targets only support OAuth or no outbound auth, not IAM.
-
-Run the server locally and list its tools:
+The `tools` Gateway (inbound `AWS_IAM`, no protocol type) forwards to the
+runtime with its own IAM role. It routes by target name, so the MCP endpoint is
+`<gateway URL>/finance/invocations`; MCP requests need the
+`Accept: application/json, text/event-stream` header. An MCP-protocol Gateway
+would merge tool catalogues across targets, but its MCP targets only support
+OAuth or no outbound auth, not IAM.
 
 ```bash
-cd app/financetools && uv run python main.py      # serves http://localhost:8000/mcp
-uv run python -c "import asyncio; from mcp import Client
-async def main():
-    async with Client('http://localhost:8000/mcp') as c:
-        print([t.name for t in (await c.list_tools()).tools])
-asyncio.run(main())"
+# Through the Gateway (the CLI signs the request with your IAM credentials)
+agentcore invoke --gateway tools --path /finance/invocations \
+  --accept "application/json, text/event-stream" \
+  --payload '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}'
+
+# The runtime directly: for an MCP runtime the payload is the whole JSON-RPC message
+agentcore invoke --runtime financetools \
+  --payload '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "loan_emi", "arguments": {"principal": 1000000, "annual_rate_percent": 9, "months": 60}}}'
+
+# Locally: serves http://localhost:8000/mcp
+cd app/financetools && uv run python main.py
 ```
 
 ## Production considerations
