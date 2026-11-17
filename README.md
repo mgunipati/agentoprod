@@ -96,7 +96,15 @@ lives only in Secrets Manager:
 
 The runtime receives only the provider name (`CREDENTIAL_ALPHA_VANTAGE_NAME`)
 and fetches the key on each call with its workload identity, which requires
-invoking it with a user ID (`agentcore invoke --user-id ...`). The construct
+invoking it with a user ID (`agentcore invoke --user-id ...`). AgentCore does
+not pass that user ID into the container, only a workload token made from it,
+so send the same value as the payload's `user_id` (the Memory user):
+
+```bash
+agentcore invoke --runtime agendev --user-id user-42 \
+  --payload '{"prompt": "Get the AAPL quote from Alpha Vantage", "user_id": "user-42"}'
+```
+ The construct
 only lets runtimes read secrets Identity manages itself, so
 `agentcore/cdk/lib/cdk-stack.ts` grants the agent runtime read access to the
 external secrets referenced in `agentcore.json`.
@@ -234,8 +242,10 @@ Still open before real users:
   anyone with IAM permission to invoke it; a resource policy can limit it to
   the Gateway's role.
 - **One user identity:** `--user-id` (AgentCore Identity) and the payload's
-  `user_id` (Memory) are separate values today; derive both from the same
-  authenticated user.
+  `user_id` (Memory) are separate values, and the runtime cannot check that
+  they match: AgentCore passes only a workload token into the container, not
+  the user ID. With JWT inbound auth, derive both from the token's verified
+  user instead of trusting the caller.
 - **Content safety:** add Bedrock Guardrails; Nova's built-in filter
   sometimes stops answers (`stop_reason: content_filtered`).
 - **Monitoring:** alarms on runtime errors and latency, and an evaluation set

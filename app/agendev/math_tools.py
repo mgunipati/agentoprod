@@ -43,20 +43,3 @@ def create_tutor_agents(model: Model) -> tuple[Agent, Agent, Agent]:
 def create_math_tools(model: Model) -> list[AgentTool]:
     """Create specialist tutor tools using the caller's configured model."""
     return [tutor.as_tool() for tutor in create_tutor_agents(model)]
-
-
-def create_teacher(model: Model) -> Agent:
-    """Create a teacher agent that delegates to specialist tutors."""
-    return Agent(
-        name="teacher",
-        model=model,
-        system_prompt="""You are a teacher who helps students by delegating to specialist tutors.
-Never solve problems yourself. Always delegate to the appropriate specialist:
-- math_tutor: for math problems and equations
-- writing_coach: for writing, grammar, and essays
-- science_helper: for science questions
-
-After receiving the specialist's response, present it to the student in a friendly way.""",
-        tools=create_math_tools(model),
-        callback_handler=None,
-    )

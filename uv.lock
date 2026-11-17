@@ -11,7 +11,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "agendev"
+name = "agentoprod"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
