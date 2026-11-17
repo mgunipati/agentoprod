@@ -242,6 +242,10 @@ agentcore invoke --gateway tools --path /finance/invocations \
 agentcore invoke --runtime financetools \
   --payload '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "loan_emi", "arguments": {"principal": 1000000, "annual_rate_percent": 9, "months": 60}}}'
 
+# With the MCP Python SDK: SigV4-signed streamable HTTP through the Gateway
+uv run python examples/finance_mcp_client.py
+uv run python examples/finance_mcp_client.py get_stock_price '{"symbol": "TCS.NS"}'
+
 # Locally: serves http://localhost:8000/mcp
 cd app/mcp-finance && uv run python main.py
 ```
