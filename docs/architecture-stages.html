@@ -1,3 +1,6 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>agentoprod Architecture Stages</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -683,9 +686,9 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 
         e("sm", "stm", "save / reload"), e("stm", "facts", "extract", { from: "b", to: "t", dashed: true }), e("facts", "prefs", "", { from: "b", to: "t", dashed: true }),
         e("prefs", "agent", "<user_context>", { from: "l", to: "b", dashed: true }),
       ],
-      added: ["Runtime gets MEMORY_CHAT_ID and IAM automatically (same-project wiring)", "Unfinished turns removed on reload, because Memory saves each message as it is added", "Without MEMORY_CHAT_ID (local CLI) history stays in process"],
+      added: ["Runtime gets MEMORY_CHAT_ID and IAM automatically (same-project wiring)", "Unfinished turns removed on reload, because Memory saves each message as it is added", "Without MEMORY_CHAT_ID (local CLI) history stays in process", "Later fix (5d3f095): facts recalled only at relevance ≥ 0.5 (unrelated ones score ~0.35), and <user_context> is background that never triggers a tool"],
       files: ["app/agendev/memory/memory_session.py", "app/agendev/agents/agent_factory.py", "agentcore/agentcore.json (memories)"],
-      verified: ["Memory agendev_default_chat ACTIVE; runtime has MEMORY_CHAT_ID", "9 tests with a fake memory, including a broken history being cleaned"],
+      verified: ["Memory agendev_default_chat ACTIVE; runtime has MEMORY_CHAT_ID", "9 tests with a fake memory, including a broken history being cleaned", "With the user's real facts, unrequested quote fetches went from 5 of 8 runs to 0 of 8"],
     },
     {
       key: "stage-7", short: "MCP server + Gateway", sub: "Tools for other agents", commit: "4de6653 → a3efe42",
@@ -732,19 +735,68 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 
         e("runtime", "av", "key, then HTTPS", { from: "t", to: "l", dashed: true }),
         e("stack", "secret", "grantRead", { from: "b", to: "t", dashed: true }), e("stack", "deny", ""), e("stack", "logs", "", { from: "r", to: "l" }),
       ],
-      added: ["The construct only allows Identity-managed secrets, so the stack grants the external secret explicitly", "CI role needs credential-provider permissions, since the CLI creates the provider outside CloudFormation", "Unified user ID deferred to JWT inbound auth"],
+      added: ["The construct only allows Identity-managed secrets, so the stack grants the external secret explicitly", "CI role needs credential-provider permissions, since the CLI creates the provider outside CloudFormation", "Since stage 9 the workload token is issued for the signed-in Cognito user, not --user-id"],
       files: ["agentcore/cdk/lib/cdk-stack.ts", "agentcore/agentcore.json (credentials)", "IAM: agentcore-credentials policy"],
       verified: ["Live AAPL quote “Source: Alpha Vantage” after the grant (was AccessDeniedException)", "financetools role: Deny present, no secret read; both log groups 30 days"],
+    },
+    {
+      key: "stage-9", short: "Cognito sign-in", sub: "JWT inbound auth, one user ID", commit: "143a7a9",
+      title: "Stage 9 · Sign in with Cognito",
+      summary: "The agendev runtime accepts only Cognito access tokens. AgentCore verifies the JWT, forwards the Authorization header, and main.py uses the token's sub as the user for Memory and Identity, so a caller can no longer pick their user ID.",
+      nodes: [
+        n("user", "person", "Signed-in user", "sign-in script · USER_PASSWORD_AUTH", 0, 140, true),
+        n("cognito", "security", "Cognito user pool", "agentoprod-users · app client agentoprod-cli", 0, 330, true),
+        n("token", "security", "Access token (JWT)", "valid 1 hour · sub = user", 280, 330, true),
+        n("runtime", "aws", "Runtime \"agendev\"", "CUSTOM_JWT authorizer · allowedClients", 280, 140, true),
+        n("main", "code", "main.token_user()", "Authorization header → sub", 560, 140, true),
+        n("mem", "data", "AgentCore Memory", "actor = sub", 840, 40),
+        n("idn", "security", "AgentCore Identity", "workload token for sub", 840, 240),
+      ],
+      edges: [
+        e("user", "cognito", "password", { from: "b", to: "t" }), e("cognito", "token", "initiate-auth"),
+        e("token", "runtime", "Bearer", { from: "t", to: "b", flow: true }), e("user", "runtime", "invoke", { flow: true }),
+        e("runtime", "main", "verified JWT", { flow: true }), e("main", "mem", "actor_id"), e("main", "idn", "user ID"),
+      ],
+      added: ["Calls without a valid token are rejected before the code runs", "requestHeaderAllowlist forwards Authorization so main.py can read the verified sub", "A payload user_id cannot override the token's user; it only applies to local runs", "The Gateway and financetools stay on IAM (SigV4)"],
+      files: ["agentcore/agentcore.json (authorizerConfiguration)", "app/agendev/main.py"],
+      verified: ["Call without a token: “Authorization method mismatch”", "Signed-in call fetched Alpha Vantage; the Memory actor equals the user's Cognito sub"],
+    },
+    {
+      key: "stage-10", short: "Guardrails", sub: "Bedrock Guardrail on every call", commit: "037684c",
+      title: "Stage 10 · A Bedrock Guardrail on every model call",
+      summary: "app/guardrails/finance-guardrail.json defines the policy; CDK turns it into a Guardrail with a pinned version. The agent passes it on every Bedrock call, and the runtime's IAM role refuses model calls that don't carry it.",
+      nodes: [
+        n("user", "person", "Signed-in user", "\"Should I buy RELIANCE now?\"", 0, 40),
+        n("rt", "aws", "Runtime \"agendev\"", "BEDROCK_GUARDRAIL_ID / _VERSION", 270, 40),
+        n("factory", "code", "create_model()", "guardrail id · version · trace disabled", 540, 40, true),
+        n("bedrock", "aws", "Amazon Bedrock", "Nova Lite · ConverseStream", 810, 40),
+        n("gr", "security", "Guardrail agentoprod-finance", "version 1 · checks input and output", 1080, 40, true),
+        n("json", "code", "finance-guardrail.json", "content · prompt attack · topic · PII", 0, 260, true),
+        n("cdk", "code", "cdk-stack.ts addGuardrail()", "version keyed on the JSON's hash", 270, 260, true),
+        n("deny", "security", "agendev role", "Deny model calls without this Guardrail", 810, 260, true),
+        n("check", "code", "check_guardrail.py", "ApplyGuardrail · 9 samples", 1080, 260, true),
+      ],
+      edges: [
+        e("user", "rt", "", { flow: true }), e("rt", "factory", "", { flow: true }), e("factory", "bedrock", "guardrailConfig", { flow: true }),
+        e("bedrock", "gr", "input + output", { flow: true }), e("json", "cdk", "read on deploy"),
+        e("cdk", "gr", "CfnGuardrail + Version", { from: "r", to: "b", dashed: true }), e("cdk", "deny", "", { dashed: true }),
+        e("deny", "bedrock", "ArnNotLike", { from: "t", to: "b", dashed: true }), e("check", "gr", "", { from: "t", to: "b", dashed: true }),
+      ],
+      added: ["Blocked: personal buy/sell/hold advice, prompt attacks, card and bank account numbers; masked: email, phone, PAN", "Editing the JSON creates a new numbered version and switches the runtime in the same deploy", "A blocked turn returns stop_reason guardrail_intervened and is logged per call", "The policy lives in app/guardrails; only the runtime code ships in the bundle"],
+      files: ["app/guardrails/finance-guardrail.json", "app/guardrails/check_guardrail.py", "agentcore/cdk/lib/cdk-stack.ts", "app/agendev/agents/agent_factory.py"],
+      verified: ["check_guardrail.py: 9 of 9 as expected against version 1", "Live: the RELIANCE buy question stopped in one 0.5 s model call with no tools; an EMI question answered normally with the Guardrail enforced"],
     },
   ];
 
   // The whole system today, one view.
   STAGES.push({
-    key: "full", short: "Full picture", sub: "Everything deployed now", commit: "main @ 13d2d3a",
+    key: "full", short: "Full picture", sub: "Everything deployed now", commit: "main @ 5d3f095",
     title: "Everything deployed today",
-    summary: "One AgentCore project, deployed from GitHub: the agendev runtime (chat, report Graph, research Swarm) with Memory and Identity, and the financetools MCP runtime behind an IAM Gateway.",
+    summary: "One AgentCore project, deployed from GitHub: the agendev runtime (chat, report Graph, research Swarm) behind Cognito sign-in, with Memory, Identity and a Bedrock Guardrail on every model call, and the financetools MCP runtime behind an IAM Gateway.",
     nodes: [
-      n("you", "person", "Callers", "CLI · agentcore invoke · MCP clients", 0, 260),
+      n("you", "person", "Callers", "signed-in users · MCP clients", 0, 260),
+      n("cognito", "security", "Cognito", "JWT access token", 0, 40),
+      n("gr", "security", "Guardrail", "agentoprod-finance v1", 1120, 40),
       n("gh", "ci", "GitHub Actions", "test 3.13 + 3.14 → deploy via OIDC", 0, 520),
       n("cfn", "aws", "CloudFormation", "AgentCore-agendev-default", 280, 520),
       n("rt", "aws", "Runtime \"agendev\"", "main.py · modes chat / report / swarm", 280, 140),
@@ -758,15 +810,15 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 
       n("cw", "data", "CloudWatch", "logs 30 days · traces", 560, 520),
     ],
     edges: [
-      e("you", "rt", "SigV4", { flow: true }), e("you", "gw", "SigV4 MCP", { flow: true }), e("rt", "agent", "", { flow: true }),
-      e("agent", "bedrock", ""), e("agent", "mem", ""), e("agent", "idn", "--user-id"), e("agent", "ext", "tools", { from: "r", to: "l" }),
+      e("you", "cognito", "sign in", { from: "t", to: "b" }), e("you", "rt", "Bearer JWT", { flow: true }), e("you", "gw", "SigV4 MCP", { flow: true }), e("rt", "agent", "", { flow: true }),
+      e("agent", "bedrock", "guardrailConfig"), e("bedrock", "gr", ""), e("agent", "mem", "actor = sub"), e("agent", "idn", "sub"), e("agent", "ext", "tools", { from: "r", to: "l" }),
       e("gw", "mcp", "Gateway role", { flow: true }), e("mcp", "ext", "", { from: "r", to: "b" }),
       e("gh", "cfn", "deploy"), e("cfn", "rt", "", { from: "t", to: "b", dashed: true }), e("cfn", "gw", "", { from: "t", to: "b", dashed: true }),
       e("rt", "cw", "", { from: "b", to: "l", dashed: true }), e("mcp", "cw", "", { from: "b", to: "t", dashed: true }),
     ],
-    added: ["2 runtimes, 1 memory, 1 gateway + target, 1 credential provider, all in agentcore.json", "70 tests run in CI before every deploy", "Open next: JWT inbound auth, Gateway-only access to financetools, Guardrails, alarms, an evaluation set"],
-    files: ["agentcore/agentcore.json", "agentcore/cdk/lib/cdk-stack.ts", "app/agendev/", "app/mcp-finance/"],
-    verified: ["Chat, Alpha Vantage, report, swarm and Gateway MCP calls all checked against the live deployment"],
+    added: ["2 runtimes, 1 memory, 1 gateway + target, 1 credential provider in agentcore.json; the Guardrail from app/guardrails", "Code in packages: agents/, tools/, memory/, observability/ under app/agendev", "82 tests run in CI before every deploy", "Open next: alarms, Gateway-only access to financetools, an evaluation set, hosted sign-in"],
+    files: ["agentcore/agentcore.json", "agentcore/cdk/lib/cdk-stack.ts", "app/agendev/", "app/mcp-finance/", "app/guardrails/"],
+    verified: ["Chat, Alpha Vantage, report, swarm, Gateway MCP, Cognito sign-in and Guardrail blocks all checked against the live deployment"],
   });
 
   // SVG attributes (background dots, arrowheads, minimap) cannot use var(), so resolve tokens.
