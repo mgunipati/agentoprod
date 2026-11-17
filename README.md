@@ -263,6 +263,31 @@ tuning, and the check script:
 uv run python app/guardrails/check_guardrail.py
 ```
 
+## Monitoring
+
+`agentcore/cdk/lib/monitoring.ts` adds a CloudWatch dashboard (`agentoprod`) and
+alarms that notify the SNS topic `agentoprod-alarms`, both on alarm and on recovery:
+
+| Alarm | Fires when |
+|---|---|
+| `agentoprod-AgentErrors` | an invocation fails: `agent_invocation_failed` logged, or an AgentCore system error |
+| `agentoprod-AgentSlow` | p90 latency above 120 s over 15 minutes |
+| `agentoprod-Throttled` | the runtime or the Bedrock model throttles a request |
+| `agentoprod-GuardrailBlockRate` | over 30% of Guardrail checks blocked or masked in an hour (10+ checks) |
+| `agentoprod-FinancetoolsErrors` | the MCP runtime returns a system error |
+
+Runtime, model and Guardrail figures are AWS's own metrics. Failures and busy
+replies come from metric filters on `main.py`'s log lines (namespace
+`agentoprod`); they match only the JSON copy of each line, since AgentCore
+writes every line three times. No data counts as OK, so quiet periods never alarm.
+
+Subscribe your email once (confirm the link AWS sends); it stays out of the repo:
+
+```bash
+aws sns subscribe --region ap-south-1 --protocol email --notification-endpoint you@example.com \
+  --topic-arn "arn:aws:sns:ap-south-1:$(aws sts get-caller-identity --query Account --output text):agentoprod-alarms"
+```
+
 ## Production considerations
 
 The agent is deployed on AgentCore through CI/CD, with Memory, Identity, an
@@ -271,7 +296,8 @@ generated stack leaves out: the agent runtime alone may read the external
 Alpha Vantage secret, the tool-only `financetools` runtime is denied Memory,
 model and API key access (the construct grants every runtime access to every
 project resource), every model call from the agent runtime must carry the
-finance Guardrail, and runtime logs are kept for 30 days instead of forever.
+finance Guardrail, runtime logs are kept for 30 days instead of forever, and
+alarms and a dashboard watch errors, latency, throttling and Guardrail blocks.
 
 Still open before real users:
 
@@ -282,5 +308,5 @@ Still open before real users:
 - **One way in to the tools:** `financetools` can still be called directly by
   anyone with IAM permission to invoke it; a resource policy can limit it to
   the Gateway's role.
-- **Monitoring:** alarms on runtime errors and latency, and an evaluation set
-  that checks tool routing and catches invented figures.
+- **Evaluation:** a fixed prompt set that checks tool routing, Guardrail
+  decisions and invented figures after each change.

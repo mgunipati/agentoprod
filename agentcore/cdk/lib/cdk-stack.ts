@@ -8,6 +8,7 @@ import { Construct } from 'constructs';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { AgentMonitoring } from './monitoring';
 
 /** Runtimes that run an agent: they call models, use Memory and fetch API keys. */
 const AGENT_RUNTIMES = ['agendev'];
@@ -39,6 +40,12 @@ const TOOL_ONLY_DENIED_ACTIONS = [
   'bedrock:InvokeModelWithResponseStream',
 ];
 
+/**
+ * The Bedrock model (or inference profile) the agent runtimes call. Set on the runtime as
+ * BEDROCK_MODEL_ID and used by the dashboard, so the two cannot drift apart.
+ */
+const MODEL_ID = 'apac.amazon.nova-lite-v1:0';
+
 /** The Guardrail every model call from an agent runtime must carry (see app/guardrails/README.md). */
 const GUARDRAIL_DEFINITION = path.join('app', 'guardrails', 'finance-guardrail.json');
 
@@ -65,9 +72,32 @@ export class AgentCoreStack extends Stack {
     const runtimeNames = (props.application.spec.runtimes ?? []).map((runtime) => runtime.name);
     const agentRuntimes = runtimeNames.filter((name) => AGENT_RUNTIMES.includes(name));
     this.grantExternalCredentialSecrets(props.application, agentRuntimes);
-    this.addGuardrail(props.application.projectRoot, agentRuntimes);
-    this.restrictToolOnlyRuntimes(runtimeNames.filter((name) => TOOL_ONLY_RUNTIMES.includes(name)));
-    this.limitLogRetention(runtimeNames);
+    const guardrail = this.addGuardrail(props.application.projectRoot, agentRuntimes);
+    const toolRuntimes = runtimeNames.filter((name) => TOOL_ONLY_RUNTIMES.includes(name));
+    this.restrictToolOnlyRuntimes(toolRuntimes);
+    const logGroups = this.limitLogRetention(runtimeNames);
+    for (const name of agentRuntimes) {
+      this.application.runtime(name).addEnvironmentVariable('BEDROCK_MODEL_ID', MODEL_ID);
+    }
+
+    const monitored = (name: string) => {
+      const runtime = this.application.runtime(name);
+      return {
+        label: name,
+        runtimeArn: runtime.runtimeArn,
+        runtimeName: runtime.runtimeName,
+        logGroupName: logGroups[name].logGroupName,
+        logGroupReady: logGroups[name].retention,
+      };
+    };
+    if (agentRuntimes.length === 1) {
+      new AgentMonitoring(this, 'Monitoring', {
+        agent: monitored(agentRuntimes[0]),
+        tools: toolRuntimes.map(monitored),
+        guardrail,
+        modelId: MODEL_ID,
+      });
+    }
   }
 
   /**
@@ -105,7 +135,7 @@ export class AgentCoreStack extends Stack {
    * agent_factory passes on every model call, and an IAM Deny on any model call made without this
    * Guardrail, so code that forgets it fails instead of running unguarded.
    */
-  private addGuardrail(projectRoot: string, runtimes: string[]): void {
+  private addGuardrail(projectRoot: string, runtimes: string[]): { arn: string; version: string } {
     const text = fs.readFileSync(path.join(projectRoot, GUARDRAIL_DEFINITION), 'utf8');
     const guardrail = new bedrock.CfnGuardrail(this, 'FinanceGuardrail', JSON.parse(text) as bedrock.CfnGuardrailProps);
     const hash = createHash('sha256').update(text).digest('hex').slice(0, 8);
@@ -135,6 +165,7 @@ export class AgentCoreStack extends Stack {
         }),
       );
     }
+    return { arn: guardrail.attrGuardrailArn, version: version.attrVersion };
   }
 
   /** Deny tool-only runtimes the Memory, model and API key access the construct gives every runtime. */
@@ -151,14 +182,19 @@ export class AgentCoreStack extends Stack {
     }
   }
 
-  /** AgentCore creates each runtime's log group with no expiry; set a retention period instead. */
-  private limitLogRetention(runtimes: string[]): void {
+  /**
+   * AgentCore creates each runtime's log group with no expiry; set a retention period instead.
+   * LogRetention also creates the group if the runtime has not started yet, so metric filters
+   * can depend on it.
+   */
+  private limitLogRetention(runtimes: string[]): Record<string, { logGroupName: string; retention: logs.LogRetention }> {
+    const groups: Record<string, { logGroupName: string; retention: logs.LogRetention }> = {};
     for (const name of runtimes) {
       const runtime = this.application.runtime(name);
-      new logs.LogRetention(this, `LogRetention-${name}`, {
-        logGroupName: `/aws/bedrock-agentcore/runtimes/${runtime.runtimeId}-DEFAULT`,
-        retention: LOG_RETENTION,
-      });
+      const logGroupName = `/aws/bedrock-agentcore/runtimes/${runtime.runtimeId}-DEFAULT`;
+      const retention = new logs.LogRetention(this, `LogRetention-${name}`, { logGroupName, retention: LOG_RETENTION });
+      groups[name] = { logGroupName, retention };
     }
+    return groups;
   }
 }
