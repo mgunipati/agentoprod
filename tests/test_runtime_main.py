@@ -6,7 +6,9 @@ the way the runtime runs it.
 """
 
 import asyncio
+import base64
 import importlib.util
+import json
 import logging
 import sys
 import types
@@ -19,6 +21,13 @@ from strands.types.exceptions import ConcurrencyException
 
 RUNTIME_DIR = Path(__file__).resolve().parents[1] / "app" / "agendev"
 SESSION = "session-0000000000000000000000000000001"
+COGNITO_SUB = "4c1f2e8a-0b7d-4e6a-9f3c-2d5b8a1e7c90"
+
+
+def bearer(claims: dict) -> dict:
+    """An Authorization header with an (unsigned) JWT, as AgentCore forwards it after verifying."""
+    encode = lambda part: base64.urlsafe_b64encode(json.dumps(part).encode()).rstrip(b"=").decode()
+    return {"Authorization": f"Bearer {encode({'alg': 'RS256'})}.{encode(claims)}.signature"}
 
 
 class FakeApp:
@@ -118,6 +127,26 @@ class RuntimeEntrypointTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.invoke({"prompt": "hi"})
         self.assertEqual(len(agent.messages), 1)
+
+    def test_token_user_is_the_memory_user_and_payload_cannot_override_it(self) -> None:
+        self.context = SimpleNamespace(session_id=SESSION, request_headers=bearer({"sub": COGNITO_SUB, "client_id": "abc"}))
+        with patch.object(self.main, "create_agent", return_value=self.chat_agent(return_value=FakeResult("ok"))) as create_agent:
+            self.invoke({"prompt": "hi", "user_id": "someone-else"})
+        self.assertEqual(create_agent.call_args.kwargs["actor_id"], COGNITO_SUB)
+
+    def test_unreadable_token_is_rejected(self) -> None:
+        for headers in ({"authorization": "Bearer not-a-jwt"}, bearer({"client_id": "abc"}), {"Authorization": "Basic abc"}):
+            self.context = SimpleNamespace(session_id=SESSION, request_headers=headers)
+            with patch.object(self.main, "create_agent") as create_agent:
+                self.assertIn("Sign in again", self.invoke({"prompt": "hi"})["error"])
+            create_agent.assert_not_called()
+
+    def test_without_a_token_the_payload_user_is_used(self) -> None:
+        self.assertIsNone(self.main.token_user(None))
+        self.assertIsNone(self.main.token_user({"X-Other": "1"}))
+        with patch.object(self.main, "create_agent", return_value=self.chat_agent(return_value=FakeResult("ok"))) as create_agent:
+            self.invoke({"prompt": "hi", "user_id": "local-dev"})
+        self.assertEqual(create_agent.call_args.kwargs["actor_id"], "local-dev")
 
     def test_report_and_swarm_modes_build_a_new_pattern_per_request(self) -> None:
         pattern = MagicMock()

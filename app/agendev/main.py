@@ -14,8 +14,17 @@ AgentCore gives every runtime session its own microVM, so chat history can live
 in this process's memory, keyed by session ID. It is lost when the session ends
 or goes idle; AgentCore Memory is the way to keep it longer. Reports and swarms
 are one-shot: each request builds new agents and keeps no history.
+
+Who the user is: the deployed runtime uses a CUSTOM_JWT (Cognito) authorizer, so
+AgentCore verifies the caller's token before the request arrives and forwards
+its Authorization header. The token's `sub` is the user for both AgentCore
+Memory and AgentCore Identity. Without a token (agentcore dev, the IAM setup
+before JWT), the payload's optional "user_id" is used instead.
 """
 
+import base64
+import binascii
+import json
 import time
 import uuid
 from functools import lru_cache
@@ -44,6 +53,31 @@ ONE_SHOT_MODES = {
 MODES = ("chat", *ONE_SHOT_MODES)
 
 
+def token_user(headers: dict | None) -> str | None:
+    """Return the `sub` claim of the forwarded bearer token, or None without one.
+
+    The signature is not checked here: AgentCore's JWT authorizer has already
+    validated the token (issuer, signature, expiry, allowed client) before the
+    request reaches this container. Raises ValueError for a malformed token.
+    """
+    authorization = next((v for k, v in (headers or {}).items() if k.lower() == "authorization"), None)
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    parts = token.split(".")
+    if scheme.lower() != "bearer" or len(parts) != 3:
+        raise ValueError("Authorization header is not a bearer JWT")
+    try:
+        payload = parts[1] + "=" * (-len(parts[1]) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("JWT payload is not valid base64 JSON") from exc
+    sub = claims.get("sub") if isinstance(claims, dict) else None
+    if not valid_memory_id(sub):
+        raise ValueError("JWT has no usable sub claim")
+    return sub
+
+
 @lru_cache(maxsize=16)
 def agent_for_session(session_id: str, user_id: str) -> Agent:
     """One chat agent per (session, user); with AgentCore Memory it reloads saved history."""
@@ -63,11 +97,17 @@ async def invoke(payload, context):
     mode = payload.get("mode", "chat")
     if mode not in MODES:
         return {"error": f"mode must be one of: {', '.join(MODES)}."}
-    # Long-term memory is per user. Callers should send a stable ID for the
-    # user, not personal data such as an email address.
-    user_id = payload.get("user_id", "anonymous")
-    if not valid_memory_id(user_id):
-        return {"error": "user_id must start with a letter or digit and use only letters, digits, '-' or '_'."}
+    # The verified token's user wins; a payload user_id is only for unauthenticated
+    # local runs. Callers should never send personal data such as an email as user_id.
+    try:
+        user_id = token_user(getattr(context, "request_headers", None))
+    except ValueError as exc:
+        log.warning("token_user_rejected reason=%s", exc)
+        return {"error": "The access token could not be read. Sign in again."}
+    if user_id is None:
+        user_id = payload.get("user_id", "anonymous")
+        if not valid_memory_id(user_id):
+            return {"error": "user_id must start with a letter or digit and use only letters, digits, '-' or '_'."}
 
     request_id = str(uuid.uuid4())
     started = time.monotonic()

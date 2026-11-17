@@ -9,7 +9,15 @@
       "entrypoint": "main.py",
       "codeLocation": "app/agendev",
       "runtimeVersion": "PYTHON_3_14",
-      "protocol": "HTTP"
+      "protocol": "HTTP",
+      "authorizerType": "CUSTOM_JWT",
+      "authorizerConfiguration": {
+        "customJwtAuthorizer": {
+          "discoveryUrl": "https://cognito-idp.ap-south-1.amazonaws.com/ap-south-1_4pM4bQcpd/.well-known/openid-configuration",
+          "allowedClients": ["73o0cfns4dge1l2dovtqmt009h"]
+        }
+      },
+      "requestHeaderAllowlist": ["Authorization"]
     },
     {
       "name": "financetools",

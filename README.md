@@ -95,17 +95,11 @@ lives only in Secrets Manager:
    (credential-provider actions on the token vault, read on that one secret).
 
 The runtime receives only the provider name (`CREDENTIAL_ALPHA_VANTAGE_NAME`)
-and fetches the key on each call with its workload identity, which requires
-invoking it with a user ID (`agentcore invoke --user-id ...`). AgentCore does
-not pass that user ID into the container, only a workload token made from it,
-so send the same value as the payload's `user_id` (the Memory user):
+and fetches the key on each call with its workload identity. With the JWT
+authorizer, AgentCore issues that workload token from the caller's verified
+access token, so no `--user-id` is needed (see "Sign in with Cognito" below).
 
-```bash
-agentcore invoke --runtime agendev --user-id user-42 \
-  --payload '{"prompt": "Get the AAPL quote from Alpha Vantage", "user_id": "user-42"}'
-```
- The construct
-only lets runtimes read secrets Identity manages itself, so
+The construct only lets runtimes read secrets Identity manages itself, so
 `agentcore/cdk/lib/cdk-stack.ts` grants the agent runtime read access to the
 external secrets referenced in `agentcore.json`.
 
@@ -156,7 +150,7 @@ agentcore invoke --local --runtime agendev \
   --session-id session-0000000000000000000000000000001 \
   --payload '{"prompt": "Hello"}'
 agentcore deploy --region ap-south-1     # creates AWS resources
-agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "Hello"}'
+agentcore invoke --runtime agendev --bearer-token "$TOKEN" --session-id ... --payload '{"prompt": "Hello"}'
 ```
 
 An optional `mode` in the payload picks the multi-agent pattern. `chat` (the
@@ -166,12 +160,32 @@ for each request and keep no history. Swarm responses include the `path` the
 agents took.
 
 ```bash
-agentcore invoke --runtime agendev --payload '{"prompt": "Compare RELIANCE.NS and TCS.NS", "mode": "report"}'
-agentcore invoke --runtime agendev --payload '{"prompt": "Compare RELIANCE.NS and TCS.NS", "mode": "swarm"}'
+agentcore invoke --runtime agendev --bearer-token "$TOKEN" --payload '{"prompt": "Compare RELIANCE.NS and TCS.NS", "mode": "report"}'
+agentcore invoke --runtime agendev --bearer-token "$TOKEN" --payload '{"prompt": "Compare RELIANCE.NS and TCS.NS", "mode": "swarm"}'
 ```
 
-The deployed runtime uses IAM (SigV4) for inbound auth and public networking,
-which suits development only.
+### Sign in with Cognito
+
+The `agendev` runtime uses a `CUSTOM_JWT` authorizer: AgentCore accepts only
+requests with a valid access token from the `agentoprod-users` Cognito user
+pool, issued to the `agentoprod-cli` app client, and rejects everything else
+before it reaches the container. It forwards the `Authorization` header (the
+only header on `requestHeaderAllowlist`), and `main.py` takes the token's
+`sub` as the user for both Memory and Identity. A `user_id` in the payload is
+ignored when a token is present; it only applies to unauthenticated local runs
+such as `agentcore dev`.
+
+Get an access token (valid for one hour) without the password appearing in
+history or the process list:
+
+```bash
+read -s "PW?Cognito password: " && echo && TOKEN=$(aws cognito-idp initiate-auth --region ap-south-1 \
+  --client-id 73o0cfns4dge1l2dovtqmt009h --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters "$(PW="$PW" python3 -c 'import json, os; print(json.dumps({"USERNAME": "mahi", "PASSWORD": os.environ["PW"]}))')" \
+  --query AuthenticationResult.AccessToken --output text); unset PW
+```
+
+The `financetools` MCP runtime and the `tools` Gateway still use IAM (SigV4).
 
 ## AgentCore Memory
 
@@ -187,12 +201,13 @@ AgentCore Memory session manager to the chat agent:
   records are added to each user message inside `<user_context>` tags, so the
   agent remembers a user across sessions.
 
-The user is the payload's optional `user_id` (default `anonymous`); send a
-stable ID, not personal data. Raw events expire after 30 days. Without
+The user is the `sub` of the caller's Cognito access token (see "Sign in with
+Cognito"); only unauthenticated local runs fall back to the payload's
+`user_id`. Raw events expire after 30 days. Without
 `MEMORY_CHAT_ID`, as in the local CLI, history stays in process memory.
 
 ```bash
-agentcore invoke --runtime agendev --session-id ... --payload '{"prompt": "My home loan is 10 lakh at 9%", "user_id": "user-42"}'
+agentcore invoke --runtime agendev --bearer-token "$TOKEN" --session-id ... --payload '{"prompt": "My home loan is 10 lakh at 9%"}'
 ```
 
 ## Finance tools as an MCP server
@@ -236,16 +251,13 @@ project resource), and runtime logs are kept for 30 days instead of forever.
 
 Still open before real users:
 
-- **Inbound auth:** runtimes and the Gateway accept IAM (SigV4) callers only.
-  A web or mobile client needs a JWT authorizer (for example Cognito).
+- **Sign-in for real users:** the agent runtime accepts Cognito tokens, but the
+  user pool has one admin-created test user and a password-flow client. A web
+  app needs hosted sign-in (authorization code + PKCE), self sign-up rules and
+  MFA. The Gateway and `financetools` still accept IAM callers only.
 - **One way in to the tools:** `financetools` can still be called directly by
   anyone with IAM permission to invoke it; a resource policy can limit it to
   the Gateway's role.
-- **One user identity:** `--user-id` (AgentCore Identity) and the payload's
-  `user_id` (Memory) are separate values, and the runtime cannot check that
-  they match: AgentCore passes only a workload token into the container, not
-  the user ID. With JWT inbound auth, derive both from the token's verified
-  user instead of trusting the caller.
 - **Content safety:** add Bedrock Guardrails; Nova's built-in filter
   sometimes stops answers (`stop_reason: content_filtered`).
 - **Monitoring:** alarms on runtime errors and latency, and an evaluation set
