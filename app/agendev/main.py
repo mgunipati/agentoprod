@@ -33,7 +33,15 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
 from strands.types.exceptions import ConcurrencyException
 
-from agents.agent_factory import AgentSettings, create_agent, create_multi_agent_model, prompt_error, reply_text, rollback_on_failure
+from agents.agent_factory import (
+    AgentSettings,
+    blocked_by_guardrail,
+    create_agent,
+    create_multi_agent_model,
+    prompt_error,
+    reply_text,
+    rollback_on_failure,
+)
 from agents.report_graph import create_report_graph, report_text
 from agents.research_swarm import create_research_swarm, handoff_path, swarm_answer
 from memory.memory_session import valid_memory_id
@@ -130,6 +138,11 @@ async def invoke(payload, context):
             request_id, mode, elapsed_ms(), type(exc).__name__,
         )
         raise
+
+    if blocked_by_guardrail(response["result"], settings):
+        # The user got the Guardrail's block message, not an answer; Bedrock still said end_turn.
+        response["stop_reason"] = "guardrail_intervened_output"
+        log.warning("guardrail_blocked_output request_id=%s mode=%s", request_id, mode)
 
     log.info(
         "agent_invocation_completed request_id=%s mode=%s duration_ms=%s %s",

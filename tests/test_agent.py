@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from agents.agent_factory import (
     AgentSettings,
+    blocked_by_guardrail,
     create_agent,
     create_model,
     create_multi_agent_model,
@@ -104,6 +105,17 @@ class AgentSettingsTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             config = create_model(AgentSettings.from_env()).config
         self.assertNotIn("guardrail_id", config)
+
+    def test_a_blocked_answer_is_recognised_by_the_block_message(self) -> None:
+        message = "I can't share that answer. I can give factual market data."
+        with patch.dict(os.environ, {"BEDROCK_GUARDRAIL_BLOCKED_OUTPUT": message}, clear=True):
+            settings = AgentSettings.from_env()
+
+        self.assertTrue(blocked_by_guardrail(f"  {message}\n", settings))
+        self.assertFalse(blocked_by_guardrail("The EMI is ₹20,758.36.", settings))
+        self.assertFalse(blocked_by_guardrail(f"{message} But here is the EMI anyway.", settings))
+        # Without a configured message (local CLI) nothing counts as blocked.
+        self.assertFalse(blocked_by_guardrail(message, AgentSettings()))
 
     def test_guardrail_needs_id_and_a_numbered_version(self) -> None:
         with self.assertRaisesRegex(ValueError, "both"):

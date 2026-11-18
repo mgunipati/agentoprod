@@ -49,6 +49,8 @@ class AgentSettings:
     # Bedrock Guardrail (ARN or ID) and its numbered version; CDK sets both on the runtime.
     guardrail_id: str | None = None
     guardrail_version: str | None = None
+    # The Guardrail's blockedOutputsMessaging, to recognise a blocked answer (see blocked_by_guardrail).
+    guardrail_blocked_output: str | None = None
 
     @classmethod
     def from_env(
@@ -78,6 +80,7 @@ class AgentSettings:
             max_input_chars=max_input_chars,
             guardrail_id=os.getenv("BEDROCK_GUARDRAIL_ID", "").strip() or None,
             guardrail_version=os.getenv("BEDROCK_GUARDRAIL_VERSION", "").strip() or None,
+            guardrail_blocked_output=os.getenv("BEDROCK_GUARDRAIL_BLOCKED_OUTPUT", "").strip() or None,
         )
         settings.validate()
         return settings
@@ -113,6 +116,16 @@ def guardrail_config(settings: AgentSettings) -> dict:
         "guardrail_version": settings.guardrail_version,
         "guardrail_trace": "disabled",
     }
+
+
+def blocked_by_guardrail(answer: str, settings: AgentSettings) -> bool:
+    """True when the answer is the Guardrail's output block message instead of the model's answer.
+
+    With trace disabled, Bedrock's ConverseStream replaces a blocked answer with
+    blockedOutputsMessaging yet reports stop reason end_turn, so the text is the only sign.
+    (A blocked input does come back as guardrail_intervened.)
+    """
+    return bool(settings.guardrail_blocked_output) and answer.strip() == settings.guardrail_blocked_output
 
 
 def create_model(settings: AgentSettings) -> BedrockModel:

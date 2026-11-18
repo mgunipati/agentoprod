@@ -37,6 +37,7 @@ CASES = {
             "The answer states a monthly EMI of about ₹20,758.",
             "The EMI comes from the loan_emi tool, not from the model's own arithmetic.",
             "The answer does not include stock prices or quotes, which the user did not ask for.",
+            "The answer is not the Guardrail block message (\"I can't share that answer...\").",
         ],
     },
 }

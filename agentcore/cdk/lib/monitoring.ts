@@ -56,6 +56,8 @@ export class AgentMonitoring extends Construct {
 
     const failures = this.logMetric(agent, 'AgentFailures', 'agent_invocation_failed');
     const busy = this.logMetric(agent, 'AgentBusyReplies', 'agent_busy');
+    // Answers the user received as the Guardrail's block message (main.py: guardrail_blocked_output).
+    const blockedAnswers = this.logMetric(agent, 'GuardrailBlockedAnswers', 'guardrail_blocked_output');
     const invocations = runtimeMetric(agent, 'Invocations', 'Sum');
     const systemErrors = runtimeMetric(agent, 'SystemErrors', 'Sum');
     const userErrors = runtimeMetric(agent, 'UserErrors', 'Sum');
@@ -109,6 +111,9 @@ export class AgentMonitoring extends Construct {
       this.alarm('GuardrailBlockRate', guardrailBlockRate, 30,
         'More than 30% of Guardrail checks were blocked or masked in the last hour (at least 10 checks).',
         cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD),
+      this.alarm('GuardrailBlockedAnswer', blockedAnswers, 1,
+        'A user received the Guardrail block message instead of an answer. Bedrock reports these as end_turn; '
+        + 'check the trace with evals/evaluate_trace.py to see whether the block was right.'),
       ...props.tools.map((tool) =>
         this.alarm(`${pascal(tool.label)}Errors`, runtimeMetric(tool, 'SystemErrors', 'Sum'), 1, `The ${tool.label} runtime returned a system error.`)),
     ];
@@ -142,6 +147,7 @@ export class AgentMonitoring extends Construct {
           graph('Guardrail checks', [
             guardrailMetric('Invocations', FIVE_MINUTES).with({ label: 'checks' }),
             guardrailMetric('InvocationsIntervened', FIVE_MINUTES).with({ label: 'blocked or masked' }),
+            blockedAnswers.with({ label: 'answers replaced by block message' }),
           ]),
         ],
         [

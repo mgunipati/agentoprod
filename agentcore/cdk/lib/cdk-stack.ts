@@ -137,7 +137,8 @@ export class AgentCoreStack extends Stack {
    */
   private addGuardrail(projectRoot: string, runtimes: string[]): { arn: string; version: string } {
     const text = fs.readFileSync(path.join(projectRoot, GUARDRAIL_DEFINITION), 'utf8');
-    const guardrail = new bedrock.CfnGuardrail(this, 'FinanceGuardrail', JSON.parse(text) as bedrock.CfnGuardrailProps);
+    const definition = JSON.parse(text) as bedrock.CfnGuardrailProps;
+    const guardrail = new bedrock.CfnGuardrail(this, 'FinanceGuardrail', definition);
     const hash = createHash('sha256').update(text).digest('hex').slice(0, 8);
     const version = new bedrock.CfnGuardrailVersion(this, `FinanceGuardrailVersion${hash}`, {
       guardrailIdentifier: guardrail.attrGuardrailId,
@@ -148,6 +149,9 @@ export class AgentCoreStack extends Stack {
       const runtime = this.application.runtime(name);
       runtime.addEnvironmentVariable('BEDROCK_GUARDRAIL_ID', guardrail.attrGuardrailArn);
       runtime.addEnvironmentVariable('BEDROCK_GUARDRAIL_VERSION', version.attrVersion);
+      // With trace off, Bedrock replaces a blocked streamed answer with this text but still
+      // reports end_turn, so the runtime recognises a blocked answer by its text.
+      runtime.addEnvironmentVariable('BEDROCK_GUARDRAIL_BLOCKED_OUTPUT', definition.blockedOutputsMessaging);
       runtime.addToRolePolicy(
         new iam.PolicyStatement({
           sid: 'ApplyFinanceGuardrail',

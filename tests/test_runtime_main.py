@@ -148,6 +148,18 @@ class RuntimeEntrypointTests(unittest.TestCase):
             self.invoke({"prompt": "hi", "user_id": "local-dev"})
         self.assertEqual(create_agent.call_args.kwargs["actor_id"], "local-dev")
 
+    def test_answer_replaced_by_the_guardrail_is_reported_and_logged(self) -> None:
+        # Bedrock says end_turn for a blocked output; only the text shows it was blocked.
+        message = "I can't share that answer."
+        agent = self.chat_agent(return_value=FakeResult(message, stop_reason="end_turn"))
+        settings = self.main.AgentSettings(guardrail_blocked_output=message)
+        with patch.object(self.main, "create_agent", return_value=agent), patch.object(self.main, "settings", settings), \
+             self.assertLogs(self.main.log, "WARNING") as logs:
+            response = self.invoke({"prompt": "What is the EMI on 10 lakh at 9% for 5 years?"})
+
+        self.assertEqual(response["stop_reason"], "guardrail_intervened_output")
+        self.assertTrue(any(line.startswith("WARNING") and "guardrail_blocked_output" in line for line in logs.output))
+
     def test_report_and_swarm_modes_build_a_new_pattern_per_request(self) -> None:
         pattern = MagicMock()
         pattern.invoke_async = AsyncMock(return_value="result")
